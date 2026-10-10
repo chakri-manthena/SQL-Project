@@ -8,7 +8,11 @@
     "seed": "npm run seed --prefix server",
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm run dev --prefix client",
+    "dev": "concurrently -k -n api,web -c green,cyan \"npm run dev:server\" \"npm run dev:client\"",
     "test": "npm test --prefix server",
     "build": "npm run build --prefix client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
