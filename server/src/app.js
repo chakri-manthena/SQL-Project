@@ -2,7 +2,8 @@ import crypto from 'node:crypto';
 import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import { PROBLEMS } from './problems.js';
+import { PROBLEMS, PROBLEM_GOALS, getProblem } from './problems.js';
+import { queryRoutes } from './routes/queries.js';
 
 const PARTICIPANT_COOKIE = 'pid';
 
@@ -27,8 +28,10 @@ function participantMiddleware(isProduction) {
 /**
  * @param {object} deps
  * @param {object} deps.config
+ * @param {object} deps.repo      App database repository
+ * @param {object} deps.executor  Executor bound to the read-only problem database
  */
-export function createApp({ config }) {
+export function createApp({ config, repo, executor }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(helmet());
@@ -45,7 +48,22 @@ export function createApp({ config }) {
   api.get('/tables', (req, res) => res.json(PROBLEMS.map((p) => ({ problemName: p.name }))));
 
   api.get('/problems', (req, res) =>
-    res.json(PROBLEMS.map((p) => ({ name: p.name, images: p.images }))));
+    res.json(PROBLEMS.map((p, index) => ({ name: p.name, goal: PROBLEM_GOALS[index] }))));
+
+  api.get('/problems/:name', (req, res) => {
+    const problem = getProblem(req.params.name);
+    if (!problem) return res.status(404).json({ status: 'failed', message: 'Unknown problem' });
+    const tables = [problem.sourceTables[0], ...(problem.name === 'Problem 9' ? ['juliett'] : [])];
+    return res.json({
+      name: problem.name,
+      goal: PROBLEM_GOALS[PROBLEMS.indexOf(problem)],
+      testCount: problem.sourceTables.length,
+      sourceTables: tables.map((name) => ({ name, data: executor.readTable(name) })),
+      expected: executor.readTable(problem.destinationTables[0]),
+    });
+  });
+
+  api.use(queryRoutes({ repo, executor }));
 
   app.use('/api/v1', api);
 
