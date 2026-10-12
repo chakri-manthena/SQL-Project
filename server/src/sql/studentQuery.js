@@ -48,9 +48,11 @@ export function parseStudentQuery(query, problem) {
 
 export function queryForTable(statement, visibleTable, testTable) {
   const copy = structuredClone(statement);
+  const aliases = new Set(copy.from.map((source) => source.as?.toLowerCase()).filter(Boolean));
   function replace(node) {
     if (!node || typeof node !== 'object') return;
-    if (typeof node.table === 'string' && node.table.toLowerCase() === visibleTable.toLowerCase()) {
+    if (typeof node.table === 'string' && node.table.toLowerCase() === visibleTable.toLowerCase() &&
+        !(node.type === 'column_ref' && aliases.has(node.table.toLowerCase()))) {
       node.table = testTable;
     }
     for (const value of Object.values(node)) replace(value);

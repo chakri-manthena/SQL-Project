@@ -57,6 +57,5 @@ export function mysqlToSqlite(input) {
     i++;
   }
 
-  // The original MariaDB schema was named "sqlsearchdata"; SQLite has no such schema.
   return out.replace(/[\s;]+$/, '');
 }

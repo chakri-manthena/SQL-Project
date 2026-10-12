@@ -74,6 +74,7 @@ test('hidden table rewriting preserves literals and qualified references', () =>
   const query = queryForTable(statement, 'alpha', 'alpha2');
   assert.match(query, /'alpha'/);
   assert.match(query, /`alpha2`\.`COL`/);
+  assert.equal(checkQuery(executor, PROBLEMS[0], 'SELECT alpha.* FROM alpha AS alpha WHERE alpha.MIN = 0').kind, 'success');
 });
 
 test('API validates submissions and stores attempts under the signed participant', async () => {
