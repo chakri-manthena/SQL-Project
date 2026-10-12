@@ -1,7 +1,8 @@
 /**
  * Problem definitions. The first source table of each problem is the one shown to
  * students; the remaining ones are hidden tests. Each source table is paired with the
- * destination table at the same index.
+ * destination table at the same index. Row order is only compared when `ordered` is set,
+ * since SQL gives no ordering guarantee without ORDER BY.
  */
 export const PROBLEMS = [
   {
@@ -59,6 +60,7 @@ export const PROBLEMS = [
     destinationTables: ['hoteld', 'hotel2d'],
     images: ['Problem 8.png'],
     repairable: true,
+    ordered: true,
   },
   {
     name: 'Problem 9',
@@ -79,6 +81,19 @@ export const PROBLEMS = [
 export function getProblem(name) {
   return PROBLEMS.find((p) => p.name === name) ?? null;
 }
+
+export const PROBLEM_GOALS = [
+  'Return every column for rows whose MIN is 0.',
+  "Return CUI1 and RUI for rows whose CUI2 is 'C0364349'.",
+  'Return every column for rows whose CFR is at most 1634.',
+  'Return RSAB and TFR for rows whose CFR is at most 1634.',
+  "Return every column where MRRANK_RANK is below 380 or TTY is 'CD'.",
+  "Return every column where TTY is 'PT', or TTY is 'SY' and MRRANK_RANK is above 400.",
+  'Return distinct SVER values below 1996.',
+  'Return every column, ordered by TUI descending and then CUI ascending.',
+  'Join india and juliett on CUI. Return LAT, STT and ISPREF where CVF is not 256, retaining duplicate rows.',
+  'Group by LUI and return LUI with the first inserted CUI for each group (SQLite representative-row behavior).',
+];
 
 /** Known-correct queries used to bootstrap voting before real students submit any. */
 export const SEED_CORRECT_QUERIES = {
