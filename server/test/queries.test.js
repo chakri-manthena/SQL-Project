@@ -107,6 +107,56 @@ test('API validates submissions and stores attempts under the signed participant
     assert.equal((await submit({ problem: 'Unknown', query: 'SELECT 1' })).status, 400);
     assert.equal(repo.getMyStatements(participant, 'Problem 1').length, 3);
     assert.equal(repo.getMyStatements('spoofed', 'Problem 1').length, 0);
+
+    const pending = await (await fetch(`${url}/voting/options/Problem%201`, { headers: { Cookie: cookie } })).json();
+    assert.equal(pending.canRequestToVote, false);
+
+    const before = Date.now() - (config.voting.minMinutes + 1) * 60 * 1000;
+    repo.addStatement({ participant, problem: 'Problem 1', statement: 'SELECT * FROM alpha', correct: false, submittedAt: before - 4 });
+    repo.addStatement({ participant, problem: 'Problem 1', statement: 'SELECT * FROM alpha', correct: false, submittedAt: before - 3 });
+    repo.addStatement({ participant, problem: 'Problem 1', statement: 'SELECT * FROM alpha', correct: false, submittedAt: before - 2 });
+
+    const options = await (await fetch(`${url}/voting/options/Problem%201?query=SELECT%20*%20FROM%20alpha`, { headers: { Cookie: cookie } })).json();
+    assert.equal(options.status, 'success');
+    assert.ok(options.cards.length >= 1);
+
+    const votePayload = {
+      problem: 'Problem 1',
+      explanation: 'Query A was easiest to understand',
+      otherQuery: options.otherQuery,
+      repairedQuery: options.repairedQuery,
+      myCorrectQuery: options.myCorrectQuery,
+      myRepairedQuery: options.myRepairedQuery,
+      otherScore: 7,
+      repairedScore: null,
+      myCorrectScore: null,
+      myRepairedScore: null,
+    };
+    const voteResponse = await fetch(`${url}/voting/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify(votePayload),
+    });
+    assert.equal(voteResponse.status, 200);
+    assert.equal((await voteResponse.json()).status, 'success');
+    assert.equal(repo.getVotes().length, 1);
+
+    const suggestionResponse = await fetch(`${url}/repair/suggest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ problem: 'Problem 1', query: 'SELECT * FROM alpha WHERE MIN = -1' }),
+    });
+    const suggestion = await suggestionResponse.json();
+    assert.equal(suggestionResponse.status, 200);
+    assert.equal(suggestion.status, 'success');
+    assert.match(suggestion.query, /MIN\s*=\s*0/i);
+
+    const unsupported = await fetch(`${url}/repair/suggest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ problem: 'Problem 10', query: 'SELECT * FROM kilo' }),
+    });
+    assert.equal(unsupported.status, 400);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
