@@ -76,6 +76,10 @@ function createRepository(db) {
       'SELECT * FROM repaired_queries WHERE participant <> ? AND problem = ? ORDER BY count ASC, id ASC LIMIT 1'),
     anyRepair: db.prepare(
       'SELECT * FROM repaired_queries WHERE problem = ? ORDER BY count ASC, id ASC LIMIT 1'),
+    repairsForProblem: db.prepare(
+      'SELECT * FROM repaired_queries WHERE problem = ? ORDER BY count ASC, id ASC LIMIT 50'),
+    correctForProblem: db.prepare(
+      'SELECT statement, count FROM statements WHERE problem = ? AND correct = 1 ORDER BY count ASC, id ASC LIMIT 50'),
     bumpRepair: db.prepare('UPDATE repaired_queries SET count = count + 1 WHERE id = ?'),
     insertVote: db.prepare(`
       INSERT INTO voting_responses (participant, problem, explanation, repaired_query, repaired_score,
@@ -107,6 +111,8 @@ function createRepository(db) {
     },
     getAnotherRepairedQuery: (participant, problem) => q.anotherRepair.get(participant, problem) ?? null,
     getAnyRepairedQuery: (problem) => q.anyRepair.get(problem) ?? null,
+    getRepairedQueriesForProblem: (problem) => q.repairsForProblem.all(problem),
+    getCorrectStatementsForProblem: (problem) => q.correctForProblem.all(problem),
     incrementRepairCount: (id) => q.bumpRepair.run(id),
 
     addVote: (vote) => q.insertVote.run({ ...vote, createdAt: Date.now() }).lastInsertRowid,

@@ -48,7 +48,7 @@ export function createApp({ config, repo, executor }) {
   api.get('/tables', (req, res) => res.json(PROBLEMS.map((p) => ({ problemName: p.name }))));
 
   api.get('/problems', (req, res) =>
-    res.json(PROBLEMS.map((p, index) => ({ name: p.name, goal: PROBLEM_GOALS[index] }))));
+    res.json(PROBLEMS.map((p, index) => ({ name: p.name, goal: PROBLEM_GOALS[index], repairable: p.repairable }))));
 
   api.get('/problems/:name', (req, res) => {
     const problem = getProblem(req.params.name);
@@ -57,13 +57,14 @@ export function createApp({ config, repo, executor }) {
     return res.json({
       name: problem.name,
       goal: PROBLEM_GOALS[PROBLEMS.indexOf(problem)],
+      repairable: problem.repairable,
       testCount: problem.sourceTables.length,
       sourceTables: tables.map((name) => ({ name, data: executor.readTable(name) })),
       expected: executor.readTable(problem.destinationTables[0]),
     });
   });
 
-  api.use(queryRoutes({ repo, executor }));
+  api.use(queryRoutes({ repo, executor, config }));
 
   app.use('/api/v1', api);
 
