@@ -39,6 +39,18 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState('source');
   const [retry, setRetry] = useState(0);
+  const [repair, setRepair] = useState(null);
+  const [repairBusy, setRepairBusy] = useState(false);
+  const [voting, setVoting] = useState(null);
+  const [voteBusy, setVoteBusy] = useState(false);
+  const [voteFeedback, setVoteFeedback] = useState('');
+  const [voteForm, setVoteForm] = useState({
+    otherScore: 4,
+    repairedScore: 4,
+    myCorrectScore: 4,
+    myRepairedScore: 4,
+    explanation: '',
+  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -70,6 +82,9 @@ export default function App() {
     if (busy || !exercise) return;
     setBusy(true);
     setResult(null);
+    setRepair(null);
+    setVoting(null);
+    setVoteFeedback('');
     setError('');
     try {
       const feedback = await request('/submitQuery', {
@@ -85,9 +100,89 @@ export default function App() {
     }
   }
 
+  async function requestRepair() {
+    if (!exercise || !query.trim() || repairBusy) return;
+    setRepairBusy(true);
+    setError('');
+    try {
+      const suggestion = await request('/repair/suggest', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ problem: selected, query }),
+      });
+      setRepair(suggestion);
+    } catch (failure) {
+      setError(`Repair request failed. ${failure.message}`);
+    } finally {
+      setRepairBusy(false);
+    }
+  }
+
+  async function requestVoting() {
+    if (!exercise || voteBusy) return;
+    setVoteBusy(true);
+    setVoteFeedback('');
+    setError('');
+    try {
+      const payload = await request(`/voting/options/${encodeURIComponent(selected)}?query=${encodeURIComponent(query)}`);
+      setVoting(payload);
+      if (payload.status === 'success') {
+        setVoteForm({
+          otherScore: 4,
+          repairedScore: 4,
+          myCorrectScore: 4,
+          myRepairedScore: 4,
+          explanation: '',
+        });
+      }
+    } catch (failure) {
+      setError(`Could not load voting options. ${failure.message}`);
+    } finally {
+      setVoteBusy(false);
+    }
+  }
+
+  async function submitVote(event) {
+    event.preventDefault();
+    if (!voting?.cards?.length || voteBusy) return;
+    setVoteBusy(true);
+    setError('');
+    setVoteFeedback('');
+    try {
+      const payload = {
+        problem: selected,
+        explanation: voteForm.explanation,
+        otherQuery: voting.otherQuery,
+        repairedQuery: voting.repairedQuery,
+        myCorrectQuery: voting.myCorrectQuery,
+        myRepairedQuery: voting.myRepairedQuery,
+        otherScore: voting.otherQuery ? Number(voteForm.otherScore) : null,
+        repairedScore: voting.repairedQuery ? Number(voteForm.repairedScore) : null,
+        myCorrectScore: voting.myCorrectQuery ? Number(voteForm.myCorrectScore) : null,
+        myRepairedScore: voting.myRepairedQuery ? Number(voteForm.myRepairedScore) : null,
+      };
+      const response = await request('/voting/submit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      setVoteFeedback(response.message || 'Vote submitted');
+    } catch (failure) {
+      setError(`Vote submission failed. ${failure.message}`);
+    } finally {
+      setVoteBusy(false);
+    }
+  }
+
+  function scoreValue(cardField) {
+    const key = `${cardField.replace('Query', '')}Score`;
+    return voteForm[key];
+  }
+
   function changeProblem(event) {
     setSelected(event.target.value);
     setResult(null);
+    setRepair(null);
+    setVoting(null);
+    setVoteFeedback('');
     setError('');
     setTab('source');
   }
@@ -133,16 +228,69 @@ export default function App() {
             onChange={(event) => { setDrafts({ ...drafts, [selected]: event.target.value }); setResult(null); }} />
           <div className="editor-actions">
             <span className="section-label">{exercise.sourceTables.map((source) => source.name).join(' + ')}</span>
-            <button className="submit-button" type="submit" disabled={busy || !query.trim()}>
-              <Play size={16} aria-hidden="true" />{busy ? 'Running...' : 'Run query'}
-            </button>
+            <div className="action-buttons">
+              <button className="ghost-button" type="button" onClick={requestRepair}
+                disabled={busy || repairBusy || !query.trim() || exercise?.repairable === false}>
+                {repairBusy ? 'Finding repair...' : 'Suggest repair'}
+              </button>
+              <button className="submit-button" type="submit" disabled={busy || !query.trim()}>
+                <Play size={16} aria-hidden="true" />{busy ? 'Running...' : 'Run query'}
+              </button>
+            </div>
           </div>
         </form>
+        {repair && <section className="repair-panel" aria-label="Repair suggestion">
+          <div className="repair-header"><strong>Suggested repair</strong><span>Confidence {Math.round((repair.confidence || 0) * 100)}%</span></div>
+          <code>{repair.query}</code>
+          <div className="repair-actions">
+            <button type="button" className="ghost-button" onClick={() => setDrafts({ ...drafts, [selected]: repair.query })}>Use suggestion</button>
+          </div>
+        </section>}
         {result && <div role="status" className={`feedback feedback-${result.status}`}>
           {result.status === 'success' ? <CheckCircle2 size={20} aria-hidden="true" /> : <AlertCircle size={20} aria-hidden="true" />}
           <div><strong>{result.status === 'success' ? `Passed ${result.testsPassed} of ${exercise.testCount} tests` : result.status === 'mismatch' ? 'Output does not match' : 'Query error'}</strong>
             <p>{result.message || result.errorMessage}</p></div>
         </div>}
+        <section className="voting-panel" aria-label="Alternative query voting">
+          <div className="voting-header">
+            <h2>Compare alternative queries</h2>
+            <button type="button" className="ghost-button" onClick={requestVoting} disabled={voteBusy || loading || !exercise}>
+              {voteBusy ? 'Loading...' : 'Load alternatives'}
+            </button>
+          </div>
+          {voting?.status === 'pending' && <p className="loading-state">{voting.message}</p>}
+          {voting?.status === 'success' && <form onSubmit={submitVote} className="vote-form">
+            {voting.cards.map((card) => (
+              <label key={card.id} className="vote-card">
+                <span><strong>{card.label}</strong><code>{card.query}</code></span>
+                <span className="vote-score">Ease rating {scoreValue(card.field)}
+                  <input
+                    type="range"
+                    min="1"
+                    max="7"
+                    value={scoreValue(card.field)}
+                    onChange={(event) => {
+                      const key = `${card.field.replace('Query', '')}Score`;
+                      setVoteForm({ ...voteForm, [key]: Number(event.target.value) });
+                    }}
+                  />
+                </span>
+              </label>
+            ))}
+            <label className="vote-comment">Optional comment
+              <textarea
+                value={voteForm.explanation}
+                maxLength={1000}
+                onChange={(event) => setVoteForm({ ...voteForm, explanation: event.target.value })}
+                placeholder="Why did one query feel easier to understand?"
+              />
+            </label>
+            <div className="vote-actions">
+              <button className="submit-button" disabled={voteBusy} type="submit">{voteBusy ? 'Submitting...' : 'Submit ratings'}</button>
+              {voteFeedback && <p className="vote-feedback">{voteFeedback}</p>}
+            </div>
+          </form>}
+        </section>
         <section className="results-section" aria-label="Exercise tables">
           <div className="result-tabs" role="tablist" aria-label="Table views">
             {[['source', 'Source data'], ['expected', 'Expected output'], ['actual', 'Your output']].map(([value, label]) => (

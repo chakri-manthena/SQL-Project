@@ -80,6 +80,8 @@ h2 { margin: 8px 0 0; font: 600 19px Manrope, sans-serif; letter-spacing: 0; }
 .query-form textarea:focus { outline-offset: -2px; }
 .editor-actions { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--line); background: #f8faf7; }
 .submit-button, .feedback button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 14px; border: 0; border-radius: 4px; background: var(--green); color: #fff; font-size: 13px; font-weight: 600; }
+.action-buttons { display: flex; align-items: center; gap: 10px; }
+.ghost-button { border: 1px solid #abc0b2; background: #fff; color: #275942; border-radius: 4px; min-height: 36px; padding: 8px 14px; font-size: 12px; font-weight: 600; }
 .feedback { display: flex; align-items: flex-start; gap: 12px; padding: 16px; margin: 20px 0; border-left: 3px solid #b07c22; background: #fff7e7; color: #654e1f; }
 .feedback > svg { flex-shrink: 0; margin-top: 2px; }
 .feedback p { margin: 5px 0 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
@@ -104,6 +106,21 @@ tbody tr:nth-child(even) { background: #fafbf9; }
 .empty-result, .loading-state, .test-context { padding: 16px 0; color: #627069; font-size: 13px; }
 .table-scroll .empty-result { padding: 12px; }
 .test-context { margin: 0; padding-bottom: 0; }
+.repair-panel, .voting-panel { margin-top: 20px; border: 1px solid var(--line); background: #fff; padding: 16px; }
+.repair-header, .voting-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.repair-header span { color: #5f6f65; font: 11px var(--mono); }
+.repair-panel code { display: block; margin-top: 10px; padding: 11px; background: #f6f8f5; border-radius: 4px; font: 12px/1.6 var(--mono); white-space: pre-wrap; }
+.repair-actions { margin-top: 12px; }
+.voting-header h2 { margin: 0; font: 600 17px Manrope, sans-serif; }
+.vote-form { display: grid; gap: 14px; margin-top: 12px; }
+.vote-card { display: grid; gap: 8px; padding: 12px; border: 1px solid #d9dfd8; background: #fafcf9; }
+.vote-card code { display: block; margin-top: 5px; font: 12px/1.6 var(--mono); color: #2e4941; white-space: pre-wrap; }
+.vote-score { font-size: 12px; color: #617067; display: grid; gap: 5px; }
+.vote-score input { width: 100%; }
+.vote-comment { display: grid; gap: 6px; font-size: 12px; color: #4f6158; }
+.vote-comment textarea { width: 100%; min-height: 66px; resize: vertical; border: 1px solid #ced8d0; padding: 10px; }
+.vote-actions { display: flex; align-items: center; gap: 12px; }
+.vote-feedback { margin: 0; font-size: 13px; color: #2f6b51; }
 
 @keyframes arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 600px) {
@@ -120,5 +137,10 @@ tbody tr:nth-child(even) { background: #fafbf9; }
   .result-tabs button { flex: 1; padding: 12px 6px; font-size: 12px; }
   .feedback { flex-wrap: wrap; }
   .feedback > div { min-width: 0; flex: 1; }
+  .editor-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+  .action-buttons { justify-content: stretch; }
+  .action-buttons button { flex: 1; }
+  .voting-header { flex-wrap: wrap; }
+  .vote-actions { flex-direction: column; align-items: stretch; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
