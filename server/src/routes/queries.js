@@ -73,12 +73,18 @@ function validateScores(payload) {
   return hasAny ? null : 'At least one score is required';
 }
 
-function votingOptions(repo, participant, problem, submittedQuery) {
+function votingOptions(repo, executor, participant, problem, submittedQuery) {
   const myCorrect = repo.getMyCorrectStatement(participant, problem)?.statement || null;
   const anotherCorrect = repo.getAnotherCorrectStatement(participant, problem) || null;
   const anotherRepair = repo.getAnotherRepairedQuery(participant, problem) || null;
   const latestWrong = repo.getMyWrongStatements(participant, problem, 1)[0]?.statement || submittedQuery || '';
-  const myRepair = suggestRepair(repo, problem, latestWrong)?.query || null;
+  const problemDefinition = getProblem(problem);
+  const myRepair = suggestRepair(
+    repo,
+    problem,
+    latestWrong,
+    (candidate) => checkQuery(executor, problemDefinition, candidate).kind === 'success',
+  )?.query || null;
 
   if (anotherCorrect) repo.incrementStatementCount(anotherCorrect.id);
   if (anotherRepair) repo.incrementRepairCount(anotherRepair.id);
@@ -161,7 +167,12 @@ export function queryRoutes({ repo, executor, config }) {
     if (typeof query !== 'string' || !query.trim() || query.length > MAX_QUERY_LENGTH) {
       return res.status(400).json({ status: 'failed', message: 'Query must be a non-empty string' });
     }
-    const suggestion = suggestRepair(repo, problem.name, query);
+    const suggestion = suggestRepair(
+      repo,
+      problem.name,
+      query,
+      (candidate) => checkQuery(executor, problem, candidate).kind === 'success',
+    );
     if (!suggestion) {
       return res.status(404).json({ status: 'failed', message: 'No repair suggestion available yet.' });
     }
@@ -176,7 +187,7 @@ export function queryRoutes({ repo, executor, config }) {
     if (!status.allowed) {
       return res.json({ status: 'pending', canRequestToVote: false, ...status });
     }
-    const options = votingOptions(repo, req.participant, problem.name, req.query.query || '');
+    const options = votingOptions(repo, executor, req.participant, problem.name, req.query.query || '');
     if (!options.cards.length) {
       return res.json({ status: 'pending', canRequestToVote: false, message: 'No alternative queries are available yet.' });
     }

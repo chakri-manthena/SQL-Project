@@ -34,14 +34,15 @@ function dedupeQueries(list) {
   return unique;
 }
 
-export function suggestRepair(repo, problemName, submittedQuery) {
+export function suggestRepair(repo, problemName, submittedQuery, isValidCandidate = () => true) {
   const seeded = [
     ...(SEED_REPAIRED_QUERIES[problemName] || []),
     ...(SEED_CORRECT_QUERIES[problemName] || []),
   ];
   const fromCorrect = repo.getCorrectStatementsForProblem(problemName).map((row) => row.statement);
   const fromRepairs = repo.getRepairedQueriesForProblem(problemName).map((row) => row.query);
-  const candidates = dedupeQueries([...seeded, ...fromCorrect, ...fromRepairs]);
+  const candidates = dedupeQueries([...seeded, ...fromCorrect, ...fromRepairs])
+    .filter((candidate) => isValidCandidate(candidate));
   if (!candidates.length) return null;
 
   let best = null;
@@ -49,9 +50,7 @@ export function suggestRepair(repo, problemName, submittedQuery) {
     const score = scoreSimilarity(submittedQuery, candidate);
     if (!best || score > best.score) best = { query: candidate, score };
   }
-  if (!best || best.score < 0.12) {
-    return { query: candidates[0], confidence: 0.12, source: 'fallback' };
-  }
+  if (!best || best.score < 0.2) return null;
   return {
     query: best.query,
     confidence: Number(best.score.toFixed(2)),

@@ -9,6 +9,7 @@ import { openAppDatabase } from '../src/db/appDb.js';
 import { createExecutor, resultsEqual } from '../src/sql/executor.js';
 import { parseStudentQuery, queryForTable } from '../src/sql/studentQuery.js';
 import { checkQuery } from '../src/services/checker.js';
+import { suggestRepair } from '../src/services/repair.js';
 import { PROBLEMS, SEED_CORRECT_QUERIES } from '../src/problems.js';
 import { createApp } from '../src/app.js';
 
@@ -160,4 +161,13 @@ test('API validates submissions and stores attempts under the signed participant
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
+});
+
+test('repair suggestion only returns candidates verified against every hidden dataset', () => {
+  const suggestion = suggestRepair(repo, 'Problem 1', 'SELECT * FROM alpha WHERE MIN = -1',
+    (candidate) => checkQuery(executor, PROBLEMS[0], candidate).kind === 'success');
+  assert.ok(suggestion);
+  assert.equal(checkQuery(executor, PROBLEMS[0], suggestion.query).kind, 'success');
+  assert.equal(suggestRepair(repo, 'Problem 1', 'SELECT * FROM alpha WHERE MIN = -1', () => false), null);
+  assert.equal(suggestRepair(repo, 'Problem 1', 'INSERT INTO alpha VALUES (1)', () => true), null);
 });
