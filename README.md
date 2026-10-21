@@ -51,12 +51,14 @@ runner, not a general-purpose SQL sandbox. It uses SQLite with a limited MySQL
 syntax translation, not full MariaDB compatibility. Problem 10 preserves the
 original exercise's representative-row GROUP BY behavior.
 
-Repair suggestions currently rank curated and previously verified correct
-queries by token similarity. A candidate is checked against every dataset for
-the exercise before it is returned; low-similarity or unverified candidates are
-not shown. This is a retrieval-based baseline, not the original Java/Z3
-synthetic repair algorithm, so it cannot derive new query structures. Problems
-9 and 10 do not offer repair suggestions.
+Repair suggestions rank curated and previously verified correct queries by
+token similarity, and also run a bounded AST search over comparison operators,
+nearby numeric literals, and the expected output projection. Every candidate is
+checked against all datasets for the exercise before it is returned; invalid,
+low-similarity, or unverified candidates are not shown. This is still a limited
+repair baseline, not the original Java/Z3 synthetic repair algorithm: it does
+not invent new joins, predicates, aggregates, or arbitrary query structures.
+Problems 9 and 10 do not offer repair suggestions.
 
 Alternative-query voting requires five submissions for the selected exercise and
 a five-minute wait from the first submission. When available, rate each distinct
