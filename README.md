@@ -63,8 +63,11 @@ Problems 9 and 10 do not offer repair suggestions.
 Alternative-query voting requires five submissions for the selected exercise and
 a five-minute wait from the first submission. When available, rate each distinct
 query from 1 (very difficult) to 7 (very easy). The current UI exposes the
-eligibility message while the threshold is unmet. Votes are stored for the study
-workflow but do not yet feed back into repair ranking.
+eligibility message while the threshold is unmet. Voting cards are bound to a
+participant-specific, ten-minute, one-use server session; query strings and the
+problem are taken from the issued session, not trusted from the vote request.
+Votes are stored for the study workflow but do not yet feed back into repair
+ranking.
 
 ## Verification
 

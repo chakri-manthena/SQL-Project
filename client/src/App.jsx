@@ -149,16 +149,12 @@ export default function App() {
     setVoteFeedback('');
     try {
       const payload = {
-        problem: selected,
+        sessionId: voting.sessionId,
+        ratings: Object.fromEntries(voting.cards.map((card) => [
+          card.id,
+          Number(voteForm[`${card.id}Score`]),
+        ])),
         explanation: voteForm.explanation,
-        otherQuery: voting.otherQuery,
-        repairedQuery: voting.repairedQuery,
-        myCorrectQuery: voting.myCorrectQuery,
-        myRepairedQuery: voting.myRepairedQuery,
-        otherScore: voting.otherQuery ? Number(voteForm.otherScore) : null,
-        repairedScore: voting.repairedQuery ? Number(voteForm.repairedScore) : null,
-        myCorrectScore: voting.myCorrectQuery ? Number(voteForm.myCorrectScore) : null,
-        myRepairedScore: voting.myRepairedQuery ? Number(voteForm.myRepairedScore) : null,
       };
       const response = await request('/voting/submit', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -172,9 +168,8 @@ export default function App() {
     }
   }
 
-  function scoreValue(cardField) {
-    const key = `${cardField.replace('Query', '')}Score`;
-    return voteForm[key];
+  function scoreValue(cardId) {
+    return voteForm[`${cardId}Score`];
   }
 
   function changeProblem(event) {
@@ -263,14 +258,14 @@ export default function App() {
             {voting.cards.map((card) => (
               <label key={card.id} className="vote-card">
                 <span><strong>{card.label}</strong><code>{card.query}</code></span>
-                <span className="vote-score">Ease rating {scoreValue(card.field)}
+                <span className="vote-score">Ease rating {scoreValue(card.id)}
                   <input
                     type="range"
                     min="1"
                     max="7"
                     value={scoreValue(card.field)}
                     onChange={(event) => {
-                      const key = `${card.field.replace('Query', '')}Score`;
+                      const key = `${card.id}Score`;
                       setVoteForm({ ...voteForm, [key]: Number(event.target.value) });
                     }}
                   />
