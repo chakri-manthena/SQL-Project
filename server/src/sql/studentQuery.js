@@ -60,3 +60,7 @@ export function queryForTable(statement, visibleTable, testTable) {
   replace(copy);
   return parser.sqlify(copy, { database: 'MySQL' });
 }
+
+export function serializeStudentQuery(statement) {
+  return parser.sqlify(statement, { database: 'MySQL' });
+}
