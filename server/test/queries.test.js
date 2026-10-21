@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { after, test } from 'node:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -122,17 +123,50 @@ test('API validates submissions and stores attempts under the signed participant
     assert.ok(options.cards.length >= 1);
 
     const votePayload = {
-      problem: 'Problem 1',
+      sessionId: options.sessionId,
+      ratings: Object.fromEntries(options.cards.map((card) => [card.id, 7])),
       explanation: 'Query A was easiest to understand',
-      otherQuery: options.otherQuery,
-      repairedQuery: options.repairedQuery,
-      myCorrectQuery: options.myCorrectQuery,
-      myRepairedQuery: options.myRepairedQuery,
-      otherScore: 7,
-      repairedScore: null,
-      myCorrectScore: null,
-      myRepairedScore: null,
+      problem: 'Problem 10',
+      otherQuery: 'SELECT * FROM forged_table',
     };
+    const incompleteVote = await fetch(`${url}/voting/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ ...votePayload, ratings: {} }),
+    });
+    assert.equal(incompleteVote.status, 400);
+
+    const invalidRating = await fetch(`${url}/voting/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ ...votePayload, ratings: { ...votePayload.ratings, [options.cards[0].id]: 9 } }),
+    });
+    assert.equal(invalidRating.status, 400);
+
+    const otherIdentity = await fetch(`${url}/myId`);
+    const otherCookie = otherIdentity.headers.get('set-cookie').split(';')[0];
+    const stolenSession = await fetch(`${url}/voting/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: otherCookie },
+      body: JSON.stringify(votePayload),
+    });
+    assert.equal(stolenSession.status, 404);
+
+    const expiredSessionId = randomUUID();
+    repo.createVotingSession({
+      id: expiredSessionId,
+      participant,
+      problem: 'Problem 1',
+      cards: options.cards,
+      ttlMs: -1,
+    });
+    const expired = await fetch(`${url}/voting/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ ...votePayload, sessionId: expiredSessionId }),
+    });
+    assert.equal(expired.status, 410);
+
     const voteResponse = await fetch(`${url}/voting/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: cookie },
@@ -141,6 +175,16 @@ test('API validates submissions and stores attempts under the signed participant
     assert.equal(voteResponse.status, 200);
     assert.equal((await voteResponse.json()).status, 'success');
     assert.equal(repo.getVotes().length, 1);
+    const submittedVote = repo.getVotes()[0];
+    assert.equal(submittedVote.problem, 'Problem 1');
+    assert.equal(submittedVote.other_query, options.cards.find((card) => card.id === 'other')?.query ?? null);
+    assert.notEqual(submittedVote.other_query, 'SELECT * FROM forged_table');
+    const replay = await fetch(`${url}/voting/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify(votePayload),
+    });
+    assert.equal(replay.status, 409);
 
     const suggestionResponse = await fetch(`${url}/repair/suggest`, {
       method: 'POST',
