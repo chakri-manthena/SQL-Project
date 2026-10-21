@@ -79,12 +79,10 @@ function votingOptions(repo, executor, participant, problem, submittedQuery) {
   const anotherRepair = repo.getAnotherRepairedQuery(participant, problem) || null;
   const latestWrong = repo.getMyWrongStatements(participant, problem, 1)[0]?.statement || submittedQuery || '';
   const problemDefinition = getProblem(problem);
-  const myRepair = suggestRepair(
-    repo,
-    problem,
-    latestWrong,
-    (candidate) => checkQuery(executor, problemDefinition, candidate).kind === 'success',
-  )?.query || null;
+  const myRepair = suggestRepair(repo, problem, latestWrong, {
+    expectedColumns: executor.readTable(problemDefinition.destinationTables[0])[0],
+    isValidCandidate: (candidate) => checkQuery(executor, problemDefinition, candidate).kind === 'success',
+  })?.query || null;
 
   if (anotherCorrect) repo.incrementStatementCount(anotherCorrect.id);
   if (anotherRepair) repo.incrementRepairCount(anotherRepair.id);
@@ -167,12 +165,10 @@ export function queryRoutes({ repo, executor, config }) {
     if (typeof query !== 'string' || !query.trim() || query.length > MAX_QUERY_LENGTH) {
       return res.status(400).json({ status: 'failed', message: 'Query must be a non-empty string' });
     }
-    const suggestion = suggestRepair(
-      repo,
-      problem.name,
-      query,
-      (candidate) => checkQuery(executor, problem, candidate).kind === 'success',
-    );
+    const suggestion = suggestRepair(repo, problem.name, query, {
+      expectedColumns: executor.readTable(problem.destinationTables[0])[0],
+      isValidCandidate: (candidate) => checkQuery(executor, problem, candidate).kind === 'success',
+    });
     if (!suggestion) {
       return res.status(404).json({ status: 'failed', message: 'No repair suggestion available yet.' });
     }
