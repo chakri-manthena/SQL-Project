@@ -38,6 +38,17 @@ CREATE TABLE IF NOT EXISTS voting_responses (
   my_correct_score  INTEGER,
   created_at        INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS voting_sessions (
+  id           TEXT PRIMARY KEY,
+  participant  TEXT NOT NULL,
+  problem      TEXT NOT NULL,
+  options_json TEXT NOT NULL,
+  created_at   INTEGER NOT NULL,
+  expires_at   INTEGER NOT NULL,
+  used_at      INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_voting_sessions_participant ON voting_sessions (participant, problem);
 `;
 
 export function openAppDatabase(dbFile) {
@@ -87,6 +98,15 @@ function createRepository(db) {
       VALUES (@participant, @problem, @explanation, @repairedQuery, @repairedScore, @otherQuery, @otherScore,
         @myRepairedQuery, @myRepairedScore, @myCorrectQuery, @myCorrectScore, @createdAt)`),
     allVotes: db.prepare('SELECT * FROM voting_responses ORDER BY id'),
+    insertVotingSession: db.prepare(`
+      INSERT INTO voting_sessions (id, participant, problem, options_json, created_at, expires_at)
+      VALUES (@id, @participant, @problem, @optionsJson, @createdAt, @expiresAt)`),
+    getVotingSession: db.prepare('SELECT * FROM voting_sessions WHERE id = ? AND participant = ?'),
+    consumeVotingSession: db.prepare(`
+      UPDATE voting_sessions SET used_at = ?
+      WHERE id = ? AND participant = ? AND used_at IS NULL AND expires_at > ?`),
+    cleanupVotingSessions: db.prepare(`
+      DELETE FROM voting_sessions WHERE expires_at <= ? OR (used_at IS NOT NULL AND used_at < ?)`),
   };
 
   return {
@@ -117,5 +137,20 @@ function createRepository(db) {
 
     addVote: (vote) => q.insertVote.run({ ...vote, createdAt: Date.now() }).lastInsertRowid,
     getVotes: () => q.allVotes.all(),
+    createVotingSession({ id, participant, problem, cards, ttlMs }) {
+      const createdAt = Date.now();
+      q.cleanupVotingSessions.run(createdAt, createdAt - 24 * 60 * 60 * 1000);
+      q.insertVotingSession.run({
+        id, participant, problem, optionsJson: JSON.stringify(cards), createdAt, expiresAt: createdAt + ttlMs,
+      });
+    },
+    getVotingSession(id, participant) {
+      const session = q.getVotingSession.get(id, participant);
+      if (!session) return null;
+      return { ...session, cards: JSON.parse(session.options_json) };
+    },
+    consumeVotingSession(id, participant, now = Date.now()) {
+      return q.consumeVotingSession.run(now, id, participant, now).changes === 1;
+    },
   };
 }

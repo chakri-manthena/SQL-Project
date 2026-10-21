@@ -1,5 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import { randomUUID } from 'node:crypto';
 import { getProblem } from '../problems.js';
 import { MAX_QUERY_LENGTH } from '../sql/executor.js';
 import { checkQuery } from '../services/checker.js';
@@ -29,49 +30,13 @@ function voteStatus(repo, participant, problem, config) {
   return { allowed: true, attempts: attempts.length };
 }
 
-function normalizeVoteScores(payload) {
-  const queries = {
-    otherQuery: payload.otherQuery || null,
-    repairedQuery: payload.repairedQuery || null,
-    myCorrectQuery: payload.myCorrectQuery || null,
-    myRepairedQuery: payload.myRepairedQuery || null,
-  };
-  const scores = {
-    otherScore: payload.otherScore ?? null,
-    repairedScore: payload.repairedScore ?? null,
-    myCorrectScore: payload.myCorrectScore ?? null,
-    myRepairedScore: payload.myRepairedScore ?? null,
-  };
-  const pairs = Object.entries(queries);
-  for (const [leftField, leftQuery] of pairs) {
-    if (!leftQuery) continue;
-    const scoreKey = leftField.replace('Query', 'Score');
-    for (const [rightField, rightQuery] of pairs) {
-      if (leftField === rightField || !rightQuery || leftQuery !== rightQuery) continue;
-      const rightScoreKey = rightField.replace('Query', 'Score');
-      if (scores[scoreKey] == null && scores[rightScoreKey] != null) scores[scoreKey] = scores[rightScoreKey];
-      if (scores[rightScoreKey] == null && scores[scoreKey] != null) scores[rightScoreKey] = scores[scoreKey];
-    }
-  }
-  return { ...queries, ...scores };
-}
-
-function validateScores(payload) {
-  const scoreKeys = ['otherScore', 'repairedScore', 'myCorrectScore', 'myRepairedScore'];
-  const queryKeys = ['otherQuery', 'repairedQuery', 'myCorrectQuery', 'myRepairedQuery'];
-  let hasAny = false;
-  for (const key of queryKeys) {
-    const value = payload[key];
-    if (value != null && typeof value !== 'string') return `${key} must be a string`;
-  }
-  for (const key of scoreKeys) {
-    const value = payload[key];
-    if (value == null) continue;
-    if (!Number.isInteger(value) || value < 1 || value > 7) return `${key} must be an integer between 1 and 7`;
-    hasAny = true;
-  }
-  return hasAny ? null : 'At least one score is required';
-}
+const VOTE_SESSION_TTL_MS = 10 * 60 * 1000;
+const VOTE_FIELDS = {
+  other: 'other',
+  repaired: 'repaired',
+  myCorrect: 'myCorrect',
+  myRepaired: 'myRepaired',
+};
 
 function votingOptions(repo, executor, participant, problem, submittedQuery) {
   const myCorrect = repo.getMyCorrectStatement(participant, problem)?.statement || null;
@@ -121,6 +86,13 @@ export function queryRoutes({ repo, executor, config }) {
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     message: { status: 'failed', message: 'Too many submissions, please slow down' },
+  });
+  const votingOptionsLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { status: 'failed', message: 'Too many voting sessions requested' },
   });
 
   router.post('/submitQuery', submitLimiter, (req, res) => {
@@ -176,7 +148,7 @@ export function queryRoutes({ repo, executor, config }) {
     return res.json({ status: 'success', ...suggestion });
   });
 
-  router.get('/voting/options/:problem', (req, res) => {
+  router.get('/voting/options/:problem', votingOptionsLimiter, (req, res) => {
     const problem = getProblem(req.params.problem);
     if (!problem) return res.status(400).json({ status: 'failed', message: 'Unknown problem' });
     const status = voteStatus(repo, req.participant, problem.name, config);
@@ -187,22 +159,77 @@ export function queryRoutes({ repo, executor, config }) {
     if (!options.cards.length) {
       return res.json({ status: 'pending', canRequestToVote: false, message: 'No alternative queries are available yet.' });
     }
-    return res.json({ status: 'success', canRequestToVote: true, problem: problem.name, ...options });
+    const sessionId = randomUUID();
+    repo.createVotingSession({
+      id: sessionId,
+      participant: req.participant,
+      problem: problem.name,
+      cards: options.cards,
+      ttlMs: VOTE_SESSION_TTL_MS,
+    });
+    return res.json({
+      status: 'success',
+      canRequestToVote: true,
+      problem: problem.name,
+      sessionId,
+      cards: options.cards,
+    });
   });
 
   router.post('/voting/submit', submitLimiter, (req, res) => {
-    const problem = getProblem(req.body?.problem);
-    if (!problem) return res.status(400).json({ status: 'failed', message: 'Unknown problem' });
-    const normalized = normalizeVoteScores(req.body ?? {});
-    const error = validateScores(normalized);
-    if (error) return res.status(400).json({ status: 'failed', message: error });
-    repo.addVote({
-      participant: req.participant,
-      problem: problem.name,
-      explanation: typeof req.body?.explanation === 'string' ? req.body.explanation.trim().slice(0, 1000) : null,
-      ...normalized,
+    const { sessionId, ratings, explanation } = req.body ?? {};
+    if (typeof sessionId !== 'string' || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
+      return res.status(400).json({ status: 'failed', message: 'A valid voting session is required' });
+    }
+    if (!ratings || typeof ratings !== 'object' || Array.isArray(ratings)) {
+      return res.status(400).json({ status: 'failed', message: 'Ratings must be provided for each displayed query' });
+    }
+
+    const outcome = repo.transaction(() => {
+      const session = repo.getVotingSession(sessionId, req.participant);
+      if (!session) return { status: 404, message: 'Voting session not found for this participant' };
+      const now = Date.now();
+      if (session.expires_at <= now) return { status: 410, message: 'Voting session expired. Load new alternatives.' };
+      if (session.used_at != null) return { status: 409, message: 'This voting session has already been submitted' };
+
+      const cardIds = session.cards.map((card) => card.id);
+      const ratingIds = Object.keys(ratings);
+      if (ratingIds.length !== cardIds.length || cardIds.some((id) => !Object.hasOwn(ratings, id))) {
+        return { status: 400, message: 'Rate every query shown in this voting session' };
+      }
+      for (const id of cardIds) {
+        if (!Number.isInteger(ratings[id]) || ratings[id] < 1 || ratings[id] > 7) {
+          return { status: 400, message: 'Each rating must be an integer between 1 and 7' };
+        }
+        if (!Object.hasOwn(VOTE_FIELDS, id)) return { status: 400, message: 'Invalid query in voting session' };
+      }
+
+      const vote = {
+        participant: req.participant,
+        problem: session.problem,
+        explanation: typeof explanation === 'string' ? explanation.trim().slice(0, 1000) : null,
+        otherQuery: null,
+        otherScore: null,
+        repairedQuery: null,
+        repairedScore: null,
+        myCorrectQuery: null,
+        myCorrectScore: null,
+        myRepairedQuery: null,
+        myRepairedScore: null,
+      };
+      for (const card of session.cards) {
+        const field = VOTE_FIELDS[card.id];
+        vote[`${field}Query`] = card.query;
+        vote[`${field}Score`] = ratings[card.id];
+      }
+
+      if (!repo.consumeVotingSession(sessionId, req.participant, now)) {
+        return { status: 409, message: 'This voting session has already been submitted or expired' };
+      }
+      repo.addVote(vote);
+      return { status: 200, message: 'Vote submitted' };
     });
-    return res.json({ status: 'success', message: 'Vote submitted' });
+    return res.status(outcome.status).json({ status: outcome.status === 200 ? 'success' : 'failed', message: outcome.message });
   });
 
   return router;
