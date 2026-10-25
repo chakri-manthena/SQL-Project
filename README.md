@@ -54,11 +54,12 @@ original exercise's representative-row GROUP BY behavior.
 Repair suggestions rank curated and previously verified correct queries by
 token similarity, and also run a bounded AST search over comparison operators,
 nearby numeric literals, Boolean connectors, redundant top-level filter branches,
-and the expected output projection. Every candidate is checked against all datasets
-for the exercise before it is returned; invalid, low-similarity, or unverified
-candidates are not shown. This is still a limited repair baseline, not the original
-Java/Z3 synthetic repair algorithm: it does not invent new joins, aggregates, or
-arbitrary query structures. Problems 9 and 10 do not offer repair suggestions.
+DISTINCT, ORDER BY directions and secondary keys, and the expected output projection.
+Every candidate is checked against all datasets for the exercise before it is
+returned; invalid, low-similarity, or unverified candidates are not shown. This is
+still a limited repair baseline, not the original Java/Z3 synthetic repair
+algorithm: it does not invent new joins, aggregates, or arbitrary query structures.
+Problems 9 and 10 do not offer repair suggestions.
 
 Alternative-query voting requires five submissions for the selected exercise and
 a five-minute wait from the first submission. When available, rate each distinct
