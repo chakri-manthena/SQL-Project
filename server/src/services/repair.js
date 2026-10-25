@@ -78,6 +78,43 @@ export function generateQueryCandidates(problemName, submittedQuery, expectedCol
     }
     return output;
   }
+  function findLogicalNodes(node, output = []) {
+    if (!node || typeof node !== 'object') return output;
+    if (node.type === 'binary_expr' && ['AND', 'OR'].includes(node.operator.toUpperCase())) output.push(node);
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) value.forEach((entry) => findLogicalNodes(entry, output));
+      else findLogicalNodes(value, output);
+    }
+    return output;
+  }
+
+  function addProjectionVariant(ast) {
+    if (!hasProjection) return;
+    const projected = structuredClone(ast);
+    projected.columns = structuredClone(projection.columns);
+    add(projected);
+  }
+
+  const logicalNodes = findLogicalNodes(original.where);
+  for (let index = 0; index < logicalNodes.length && candidates.length < MAX_GENERATED_CANDIDATES; index++) {
+    const changed = structuredClone(original);
+    const target = findLogicalNodes(changed.where)[index];
+    if (!target) continue;
+    target.operator = target.operator.toUpperCase() === 'AND' ? 'OR' : 'AND';
+    add(changed);
+    addProjectionVariant(changed);
+  }
+
+  if (original.where?.type === 'binary_expr' && ['AND', 'OR'].includes(original.where.operator.toUpperCase())) {
+    for (const branch of ['left', 'right']) {
+      const changed = structuredClone(original);
+      changed.where = structuredClone(changed.where[branch]);
+      add(changed);
+      addProjectionVariant(changed);
+      if (candidates.length >= MAX_GENERATED_CANDIDATES) break;
+    }
+  }
+
   const predicates = findPredicates(original.where);
 
   for (const predicate of predicates) {
@@ -99,11 +136,7 @@ export function generateQueryCandidates(problemName, submittedQuery, expectedCol
       target.operator = operator;
       target.right = structuredClone(right);
       add(changed);
-      if (hasProjection) {
-        const projected = structuredClone(changed);
-        projected.columns = structuredClone(projection.columns);
-        add(projected);
-      }
+      addProjectionVariant(changed);
       }
       if (candidates.length >= MAX_GENERATED_CANDIDATES) break;
     }

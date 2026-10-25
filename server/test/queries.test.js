@@ -232,3 +232,21 @@ test('bounded AST repair search can change projection, operator and numeric lite
   assert.match(repaired, /MIN`?\s*(?:<\s*1|=\s*0)/i);
   assert.match(repaired, /`COL`/i);
 });
+
+test('bounded AST repair search can fix Boolean connectors and redundant filter branches', () => {
+  const booleanQuery = "SELECT * FROM foxtrot WHERE TTY = 'PT' AND (TTY = 'SY' AND MRRANK_RANK > 400)";
+  const booleanCandidates = generateQueryCandidates(
+    'Problem 6', booleanQuery, executor.readTable('foxtrotd')[0]);
+  const booleanRepair = booleanCandidates.find((query) =>
+    checkQuery(executor, PROBLEMS[5], query).kind === 'success');
+  assert.ok(booleanRepair, 'expected a generated AND/OR variant to pass Problem 6');
+  assert.match(booleanRepair, /\bOR\b/i);
+
+  const branchQuery = 'SELECT * FROM charlie WHERE CFR < 1635 AND TFR < 2000';
+  const branchCandidates = generateQueryCandidates(
+    'Problem 3', branchQuery, executor.readTable('charlied')[0]);
+  const branchRepair = branchCandidates.find((query) =>
+    checkQuery(executor, PROBLEMS[2], query).kind === 'success');
+  assert.ok(branchRepair, 'expected a generated filter-branch candidate to pass Problem 3');
+  assert.match(branchRepair, /CFR/i);
+});
