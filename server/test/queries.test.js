@@ -250,3 +250,27 @@ test('bounded AST repair search can fix Boolean connectors and redundant filter 
   assert.ok(branchRepair, 'expected a generated filter-branch candidate to pass Problem 3');
   assert.match(branchRepair, /CFR/i);
 });
+
+test('bounded AST repair search can add DISTINCT and repair ORDER BY directions and keys', () => {
+  const distinctCandidates = generateQueryCandidates(
+    'Problem 7',
+    'SELECT SVER FROM golf WHERE SVER < 1996',
+    executor.readTable('golfd')[0],
+  );
+  const distinctRepair = distinctCandidates.find((query) =>
+    checkQuery(executor, PROBLEMS[6], query).kind === 'success');
+  assert.ok(distinctRepair, 'expected a generated DISTINCT candidate to pass Problem 7');
+  assert.match(distinctRepair, /DISTINCT/i);
+
+  const orderCandidates = generateQueryCandidates(
+    'Problem 8',
+    'SELECT * FROM hotel ORDER BY TUI ASC',
+    executor.readTable('hoteld')[0],
+  );
+  const orderRepair = orderCandidates.find((query) =>
+    /TUI.*DESC/i.test(query) && /CUI.*ASC/i.test(query) &&
+    checkQuery(executor, PROBLEMS[7], query).kind === 'success');
+  assert.ok(orderRepair, 'expected a generated direction/secondary-key candidate to pass Problem 8');
+  assert.match(orderRepair, /TUI.*DESC/i);
+  assert.match(orderRepair, /CUI.*ASC/i);
+});

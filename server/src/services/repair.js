@@ -95,6 +95,69 @@ export function generateQueryCandidates(problemName, submittedQuery, expectedCol
     add(projected);
   }
 
+  const distinctVariant = structuredClone(original);
+  distinctVariant.distinct = original.distinct ? null : 'DISTINCT';
+  add(distinctVariant);
+  addProjectionVariant(distinctVariant);
+
+  const problem = getProblem(problemName);
+  if (problem?.ordered && expectedColumns?.length && expectedColumns[0] !== '*') {
+    const sortColumns = expectedColumns;
+    if (original.orderby?.length) {
+      for (let index = 0; index < original.orderby.length && candidates.length < MAX_GENERATED_CANDIDATES; index++) {
+        const changed = structuredClone(original);
+        const direction = changed.orderby[index].type?.toUpperCase();
+        changed.orderby[index].type = direction === 'DESC' ? 'ASC' : 'DESC';
+        add(changed);
+        addProjectionVariant(changed);
+
+        const existingSortColumns = new Set(changed.orderby.map((item) => item.expr?.column?.toUpperCase()));
+        for (const column of sortColumns) {
+          if (existingSortColumns.has(column.toUpperCase())) continue;
+          for (const secondaryDirection of ['ASC', 'DESC']) {
+            const withSecondary = structuredClone(changed);
+            withSecondary.orderby.push({
+              expr: { type: 'column_ref', table: null, column, collate: null },
+              type: secondaryDirection,
+            });
+            add(withSecondary);
+            addProjectionVariant(withSecondary);
+          }
+        }
+      }
+      const existingSortColumns = new Set(original.orderby.map((item) => item.expr?.column?.toUpperCase()));
+      for (const column of sortColumns) {
+        if (existingSortColumns.has(column.toUpperCase())) continue;
+        for (const direction of ['ASC', 'DESC']) {
+          const changed = structuredClone(original);
+          changed.orderby.push({
+            expr: { type: 'column_ref', table: null, column, collate: null },
+            type: direction,
+          });
+          add(changed);
+          addProjectionVariant(changed);
+        }
+      }
+    } else {
+      for (let first = 0; first < sortColumns.length && candidates.length < MAX_GENERATED_CANDIDATES; first++) {
+        for (let second = 0; second < sortColumns.length && candidates.length < MAX_GENERATED_CANDIDATES; second++) {
+          if (first === second) continue;
+          for (const firstDirection of ['ASC', 'DESC']) {
+            for (const secondDirection of ['ASC', 'DESC']) {
+              const changed = structuredClone(original);
+              changed.orderby = [
+                { expr: { type: 'column_ref', table: null, column: sortColumns[first], collate: null }, type: firstDirection },
+                { expr: { type: 'column_ref', table: null, column: sortColumns[second], collate: null }, type: secondDirection },
+              ];
+              add(changed);
+              addProjectionVariant(changed);
+            }
+          }
+        }
+      }
+    }
+  }
+
   const logicalNodes = findLogicalNodes(original.where);
   for (let index = 0; index < logicalNodes.length && candidates.length < MAX_GENERATED_CANDIDATES; index++) {
     const changed = structuredClone(original);
