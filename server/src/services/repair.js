@@ -87,6 +87,36 @@ export function generateQueryCandidates(problemName, submittedQuery, expectedCol
     }
     return output;
   }
+  function isComparison(node) {
+    return node?.type === 'binary_expr' && COMPARISON_OPERATORS.includes(node.operator.toUpperCase());
+  }
+  function removeNestedFilterBranches(node) {
+    if (!node || typeof node !== 'object') return [];
+    const variants = [];
+    if (node.type === 'binary_expr' && ['AND', 'OR'].includes(node.operator.toUpperCase())) {
+      if (isComparison(node.left)) variants.push(structuredClone(node.right));
+      if (isComparison(node.right)) variants.push(structuredClone(node.left));
+    }
+    for (const [key, value] of Object.entries(node)) {
+      if (Array.isArray(value)) {
+        value.forEach((entry, index) => {
+          for (const replacement of removeNestedFilterBranches(entry)) {
+            const changed = structuredClone(node);
+            changed[key][index] = replacement;
+            variants.push(changed);
+          }
+        });
+      } else if (value && typeof value === 'object') {
+        for (const replacement of removeNestedFilterBranches(value)) {
+          const changed = structuredClone(node);
+          changed[key] = replacement;
+          variants.push(changed);
+        }
+      }
+      if (variants.length >= MAX_GENERATED_CANDIDATES) break;
+    }
+    return variants.slice(0, MAX_GENERATED_CANDIDATES);
+  }
 
   function addProjectionVariant(ast) {
     if (!hasProjection) return;
@@ -176,6 +206,14 @@ export function generateQueryCandidates(problemName, submittedQuery, expectedCol
       addProjectionVariant(changed);
       if (candidates.length >= MAX_GENERATED_CANDIDATES) break;
     }
+  }
+
+  for (const where of removeNestedFilterBranches(original.where)) {
+    if (candidates.length >= MAX_GENERATED_CANDIDATES) break;
+    const changed = structuredClone(original);
+    changed.where = where;
+    add(changed);
+    addProjectionVariant(changed);
   }
 
   const predicates = findPredicates(original.where);

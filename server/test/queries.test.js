@@ -249,6 +249,14 @@ test('bounded AST repair search can fix Boolean connectors and redundant filter 
     checkQuery(executor, PROBLEMS[2], query).kind === 'success');
   assert.ok(branchRepair, 'expected a generated filter-branch candidate to pass Problem 3');
   assert.match(branchRepair, /CFR/i);
+
+  const nestedQuery = "SELECT * FROM foxtrot WHERE (TTY = 'PT' AND MRRANK_RANK > 500) OR (TTY = 'SY' AND MRRANK_RANK > 400)";
+  const nestedCandidates = generateQueryCandidates(
+    'Problem 6', nestedQuery, executor.readTable('foxtrotd')[0]);
+  const nestedRepair = nestedCandidates.find((query) =>
+    checkQuery(executor, PROBLEMS[5], query).kind === 'success');
+  assert.ok(nestedRepair, 'expected a nested predicate removal to pass Problem 6');
+  assert.match(nestedRepair, /TTY/i);
 });
 
 test('bounded AST repair search can add DISTINCT and repair ORDER BY directions and keys', () => {
