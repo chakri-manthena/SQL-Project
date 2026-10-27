@@ -46,6 +46,7 @@ function votingOptions(repo, executor, participant, problem, submittedQuery) {
   const problemDefinition = getProblem(problem);
   const myRepair = suggestRepair(repo, problem, latestWrong, {
     expectedColumns: executor.readTable(problemDefinition.destinationTables[0])[0],
+    sourceColumns: executor.readTable(problemDefinition.sourceTables[0])[0],
     isValidCandidate: (candidate) => checkQuery(executor, problemDefinition, candidate).kind === 'success',
   })?.query || null;
 
@@ -139,6 +140,7 @@ export function queryRoutes({ repo, executor, config }) {
     }
     const suggestion = suggestRepair(repo, problem.name, query, {
       expectedColumns: executor.readTable(problem.destinationTables[0])[0],
+      sourceColumns: executor.readTable(problem.sourceTables[0])[0],
       isValidCandidate: (candidate) => checkQuery(executor, problem, candidate).kind === 'success',
     });
     if (!suggestion) {

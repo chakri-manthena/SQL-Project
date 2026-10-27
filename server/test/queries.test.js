@@ -233,6 +233,19 @@ test('bounded AST repair search can change projection, operator and numeric lite
   assert.match(repaired, /`COL`/i);
 });
 
+test('bounded AST repair search can replace an incorrect predicate column', () => {
+  const candidates = generateQueryCandidates(
+    'Problem 1',
+    'SELECT * FROM alpha WHERE MAX = 0',
+    executor.readTable('alphad')[0],
+    executor.readTable('alpha')[0],
+  );
+  const repaired = candidates.find((query) =>
+    checkQuery(executor, PROBLEMS[0], query).kind === 'success');
+  assert.ok(repaired, 'expected a source-column replacement to pass Problem 1');
+  assert.match(repaired, /MIN/i);
+});
+
 test('bounded AST repair search can fix Boolean connectors and redundant filter branches', () => {
   const booleanQuery = "SELECT * FROM foxtrot WHERE TTY = 'PT' AND (TTY = 'SY' AND MRRANK_RANK > 400)";
   const booleanCandidates = generateQueryCandidates(

@@ -38,7 +38,7 @@ function dedupeQueries(list) {
   return unique;
 }
 
-export function generateQueryCandidates(problemName, submittedQuery, expectedColumns) {
+export function generateQueryCandidates(problemName, submittedQuery, expectedColumns, sourceColumns = []) {
   let original;
   try {
     const problem = getProblem(problemName);
@@ -219,6 +219,18 @@ export function generateQueryCandidates(problemName, submittedQuery, expectedCol
   const predicates = findPredicates(original.where);
 
   for (const predicate of predicates) {
+    if (predicate.left?.type === 'column_ref') {
+      for (const column of sourceColumns) {
+        if (column.toUpperCase() === predicate.left.column.toUpperCase()) continue;
+        if (candidates.length >= MAX_GENERATED_CANDIDATES) break;
+        const changed = structuredClone(original);
+        const target = findPredicates(changed.where)[predicates.indexOf(predicate)];
+        if (!target) continue;
+        target.left.column = column;
+        add(changed);
+        addProjectionVariant(changed);
+      }
+    }
     const rightOptions = [predicate.right];
     if (predicate.right?.type === 'number' && Number.isFinite(Number(predicate.right.value))) {
       const value = Number(predicate.right.value);
@@ -246,7 +258,7 @@ export function generateQueryCandidates(problemName, submittedQuery, expectedCol
 }
 
 export function suggestRepair(repo, problemName, submittedQuery, options = {}) {
-  const { isValidCandidate = () => true, expectedColumns = [] } = options;
+  const { isValidCandidate = () => true, expectedColumns = [], sourceColumns = [] } = options;
   const problem = getProblem(problemName);
   if (!problem) return null;
   try {
@@ -260,7 +272,7 @@ export function suggestRepair(repo, problemName, submittedQuery, options = {}) {
   ];
   const fromCorrect = repo.getCorrectStatementsForProblem(problemName).map((row) => row.statement);
   const fromRepairs = repo.getRepairedQueriesForProblem(problemName).map((row) => row.query);
-  const generated = generateQueryCandidates(problemName, submittedQuery, expectedColumns);
+  const generated = generateQueryCandidates(problemName, submittedQuery, expectedColumns, sourceColumns);
   const candidates = dedupeQueries([...seeded, ...fromCorrect, ...fromRepairs, ...generated])
     .filter((candidate) => isValidCandidate(candidate));
   if (!candidates.length) return null;
