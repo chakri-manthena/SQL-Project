@@ -39,7 +39,13 @@ SELECT * FROM alpha WHERE MIN = 0;
 Submissions run against every dataset for that exercise. A mismatch shows the
 source, expected output and actual output for the failing test. Row order is
 ignored except for the ORDER BY exercise (Problem 8); duplicate rows are retained.
-Drafts are kept while switching exercises, but not across page reloads.
+Drafts are saved per participant and exercise in this browser, including across
+reloads. A stable `COOKIE_SECRET` is needed to keep the participant ID across
+backend restarts.
+
+Open **Handout** in the exercise header for a printable booklet of all ten
+prompts and visible source tables. Use the browser's **Print / Save as PDF**
+action to export it. Hidden test datasets and expected outputs are not included.
 Attempts are persisted under a signed participant cookie; the browser cannot
 choose the participant by supplying an ID in the request body.
 
@@ -63,7 +69,8 @@ invent new joins, aggregates, or arbitrary query structures. Problems 9 and 10 d
 not offer repair suggestions.
 
 Alternative-query voting requires five submissions for the selected exercise and
-a five-minute wait from the first submission. When available, rate each distinct
+a five-minute wait from the first submission. The exercise header shows attempt
+progress, solved status, and the remaining wait. When available, rate each distinct
 query from 1 (very difficult) to 7 (very easy). The current UI exposes the
 eligibility message while the threshold is unmet. Voting cards are bound to a
 participant-specific, ten-minute, one-use server session; query strings and the
