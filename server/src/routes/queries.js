@@ -14,6 +14,7 @@ function voteStatus(repo, participant, problem, config) {
       message: `Submit at least ${config.voting.minAttempts} queries before requesting alternatives.`,
       attempts: attempts.length,
       needed: config.voting.minAttempts,
+      remainingSeconds: 0,
     };
   }
   const first = attempts[0]?.submitted_at ?? Date.now();
@@ -25,9 +26,10 @@ function voteStatus(repo, participant, problem, config) {
       message: `Please wait ${Math.ceil(remainingMs / 1000)} more seconds before requesting alternatives.`,
       attempts: attempts.length,
       needed: config.voting.minAttempts,
+      remainingSeconds: Math.ceil(remainingMs / 1000),
     };
   }
-  return { allowed: true, attempts: attempts.length };
+  return { allowed: true, attempts: attempts.length, needed: config.voting.minAttempts, remainingSeconds: 0 };
 }
 
 const VOTE_SESSION_TTL_MS = 10 * 60 * 1000;
@@ -148,6 +150,18 @@ export function queryRoutes({ repo, executor, config }) {
     }
     repo.addRepairedQuery(suggestion.query, 'SYSTEM', problem.name);
     return res.json({ status: 'success', ...suggestion });
+  });
+
+  router.get('/voting/progress/:problem', (req, res) => {
+    const problem = getProblem(req.params.problem);
+    if (!problem) return res.status(400).json({ status: 'failed', message: 'Unknown problem' });
+    const progress = voteStatus(repo, req.participant, problem.name, config);
+    return res.json({
+      status: progress.allowed ? 'ready' : 'pending',
+      canRequestToVote: progress.allowed,
+      solved: Boolean(repo.getMyCorrectStatement(req.participant, problem.name)),
+      ...progress,
+    });
   });
 
   router.get('/voting/options/:problem', votingOptionsLimiter, (req, res) => {

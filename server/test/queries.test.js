@@ -112,11 +112,19 @@ test('API validates submissions and stores attempts under the signed participant
 
     const pending = await (await fetch(`${url}/voting/options/Problem%201`, { headers: { Cookie: cookie } })).json();
     assert.equal(pending.canRequestToVote, false);
+    const progressBefore = await (await fetch(`${url}/voting/progress/Problem%201`, { headers: { Cookie: cookie } })).json();
+    assert.equal(progressBefore.attempts, 3);
+    assert.equal(progressBefore.needed, config.voting.minAttempts);
+    assert.equal(progressBefore.solved, true);
 
     const before = Date.now() - (config.voting.minMinutes + 1) * 60 * 1000;
     repo.addStatement({ participant, problem: 'Problem 1', statement: 'SELECT * FROM alpha', correct: false, submittedAt: before - 4 });
     repo.addStatement({ participant, problem: 'Problem 1', statement: 'SELECT * FROM alpha', correct: false, submittedAt: before - 3 });
     repo.addStatement({ participant, problem: 'Problem 1', statement: 'SELECT * FROM alpha', correct: false, submittedAt: before - 2 });
+
+    const progressReady = await (await fetch(`${url}/voting/progress/Problem%201`, { headers: { Cookie: cookie } })).json();
+    assert.equal(progressReady.canRequestToVote, true);
+    assert.equal(progressReady.remainingSeconds, 0);
 
     const options = await (await fetch(`${url}/voting/options/Problem%201?query=SELECT%20*%20FROM%20alpha`, { headers: { Cookie: cookie } })).json();
     assert.equal(options.status, 'success');
@@ -145,6 +153,22 @@ test('API validates submissions and stores attempts under the signed participant
 
     const otherIdentity = await fetch(`${url}/myId`);
     const otherCookie = otherIdentity.headers.get('set-cookie').split(';')[0];
+    const otherParticipant = await otherIdentity.json();
+    for (let index = 0; index < config.voting.minAttempts; index++) {
+      repo.addStatement({
+        participant: otherParticipant,
+        problem: 'Problem 1',
+        statement: 'SELECT * FROM alpha',
+        correct: false,
+      });
+    }
+    const waitingProgress = await (await fetch(`${url}/voting/progress/Problem%201`, {
+      headers: { Cookie: otherCookie },
+    })).json();
+    assert.equal(waitingProgress.status, 'pending');
+    assert.equal(waitingProgress.attempts, config.voting.minAttempts);
+    assert.ok(waitingProgress.remainingSeconds > 0);
+
     const stolenSession = await fetch(`${url}/voting/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: otherCookie },
