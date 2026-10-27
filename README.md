@@ -5,6 +5,11 @@ from the paper *Identifying and Repairing Mistakes in Student-Authored SQL Queri
 by Kai Presler-Marshall, Sarah Heckman and Kathryn Stolee
 ([original Java implementation](https://github.com/kpresler/SQLRepair)).
 
+This React/Node project reimplements the SQLSearch participant workflow and
+includes the SQL exercise scripts. It does not redistribute the original
+student-submission CSV research dataset or Java/Z3 binary; those are separate
+artifacts in the source repository and are not required to run this app.
+
 ## Run Locally
 
 Requires Node.js 20.19+ and npm. From the project root:
