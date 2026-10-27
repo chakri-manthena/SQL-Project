@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Database, Play, RefreshCw, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Database, Play, RefreshCw, AlertCircle, Printer } from 'lucide-react';
 
 async function request(url, options = {}) {
   const response = await fetch(`/api/v1${url}`, options);
@@ -30,6 +30,7 @@ function DataTable({ title, data }) {
 export default function App() {
   const [participant, setParticipant] = useState('');
   const [problems, setProblems] = useState([]);
+  const [progress, setProgress] = useState(null);
   const [selected, setSelected] = useState('Problem 1');
   const [exercise, setExercise] = useState(null);
   const [drafts, setDrafts] = useState({});
@@ -58,14 +59,25 @@ export default function App() {
       setLoading(true);
       setError('');
       setExercise(null);
+      setProgress(null);
       try {
         const identity = await request('/myId', { signal: controller.signal });
-        const list = await request('/problems', { signal: controller.signal });
-        const detail = await request(`/problems/${encodeURIComponent(selected)}`, { signal: controller.signal });
+        const [list, detail, voteProgress] = await Promise.all([
+          request('/problems', { signal: controller.signal }),
+          request(`/problems/${encodeURIComponent(selected)}`, { signal: controller.signal }),
+          request(`/voting/progress/${encodeURIComponent(selected)}`, { signal: controller.signal }),
+        ]);
         if (!controller.signal.aborted) {
           setParticipant(identity);
           setProblems(list);
           setExercise(detail);
+          setProgress(voteProgress);
+          try {
+            const saved = localStorage.getItem(`sql-project:drafts:${identity}`);
+            setDrafts(saved ? JSON.parse(saved) : {});
+          } catch {
+            setDrafts({});
+          }
         }
       } catch (failure) {
         if (!controller.signal.aborted) setError(`Cannot load the exercise. ${failure.message}`);
@@ -76,6 +88,19 @@ export default function App() {
     load();
     return () => controller.abort();
   }, [selected, retry]);
+
+  useEffect(() => {
+    if (!progress?.remainingSeconds) return undefined;
+    const timer = setInterval(() => {
+      setProgress((current) => {
+        if (!current || current.remainingSeconds <= 1) {
+          return current ? { ...current, status: 'ready', canRequestToVote: true, remainingSeconds: 0 } : current;
+        }
+        return { ...current, remainingSeconds: current.remainingSeconds - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [Boolean(progress?.remainingSeconds)]);
 
   async function submit(event) {
     event.preventDefault();
@@ -93,6 +118,9 @@ export default function App() {
       });
       setResult(feedback);
       if (feedback.actual) setTab('actual');
+      request(`/voting/progress/${encodeURIComponent(selected)}`)
+        .then(setProgress)
+        .catch(() => {});
     } catch (failure) {
       setError(`Submission failed. ${failure.message}`);
     } finally {
@@ -172,6 +200,18 @@ export default function App() {
     return voteForm[`${cardId}Score`];
   }
 
+  function updateDraft(value) {
+    const updated = { ...drafts, [selected]: value };
+    setDrafts(updated);
+    if (participant) {
+      try {
+        localStorage.setItem(`sql-project:drafts:${participant}`, JSON.stringify(updated));
+      } catch {
+        return;
+      }
+    }
+  }
+
   function changeProblem(event) {
     setSelected(event.target.value);
     setResult(null);
@@ -195,7 +235,12 @@ export default function App() {
           <span className="wordmark-mark"><Database size={17} aria-hidden="true" /></span>
           <span>SQL<span className="wordmark-light">/</span>Project</span>
         </a>
-        <span className="status">{participant ? `Participant ${participant}` : 'Connecting...'}</span>
+        <div className="topbar-actions">
+          <a className="ghost-button handout-link" href="/handout" target="_blank" rel="noreferrer" title="Open printable exercise handout">
+            <Printer size={15} aria-hidden="true" /> Handout
+          </a>
+          <span className="status">{participant ? `Participant ${participant}` : 'Connecting...'}</span>
+        </div>
       </header>
       <section className="exercise-header" aria-label="Exercise selection">
         <div className="exercise-picker">
@@ -205,6 +250,12 @@ export default function App() {
           </select>
         </div>
         {exercise && <span className="test-count">{exercise.testCount} test datasets</span>}
+        {progress && <span className="study-progress">
+          {progress.solved && <span className="solved-mark"><CheckCircle2 size={14} aria-hidden="true" /> Solved</span>}
+          <span>{progress.attempts} / {progress.needed} attempts</span>
+          {progress.remainingSeconds > 0 && <span className="wait-time">{Math.floor(progress.remainingSeconds / 60)}:{String(progress.remainingSeconds % 60).padStart(2, '0')} to voting</span>}
+          {progress.canRequestToVote && <span className="ready-mark">Voting ready</span>}
+        </span>}
       </section>
       {loading && <p role="status" className="loading-state">Loading exercise...</p>}
       {error && <div role="alert" className="feedback feedback-error">
@@ -220,7 +271,7 @@ export default function App() {
           <div className="editor-heading"><label htmlFor="query">SQL query</label><span>{query.length} / 5000</span></div>
           <textarea id="query" value={query} maxLength={5000} spellCheck={false} disabled={busy}
             placeholder={`SELECT * FROM ${exercise.sourceTables[0].name}`}
-            onChange={(event) => { setDrafts({ ...drafts, [selected]: event.target.value }); setResult(null); }} />
+            onChange={(event) => { updateDraft(event.target.value); setResult(null); }} />
           <div className="editor-actions">
             <span className="section-label">{exercise.sourceTables.map((source) => source.name).join(' + ')}</span>
             <div className="action-buttons">
@@ -238,7 +289,7 @@ export default function App() {
           <div className="repair-header"><strong>Suggested repair</strong><span>Confidence {Math.round((repair.confidence || 0) * 100)}%</span></div>
           <code>{repair.query}</code>
           <div className="repair-actions">
-            <button type="button" className="ghost-button" onClick={() => setDrafts({ ...drafts, [selected]: repair.query })}>Use suggestion</button>
+            <button type="button" className="ghost-button" onClick={() => updateDraft(repair.query)}>Use suggestion</button>
           </div>
         </section>}
         {result && <div role="status" className={`feedback feedback-${result.status}`}>
@@ -263,7 +314,7 @@ export default function App() {
                     type="range"
                     min="1"
                     max="7"
-                    value={scoreValue(card.field)}
+                    value={scoreValue(card.id)}
                     onChange={(event) => {
                       const key = `${card.id}Score`;
                       setVoteForm({ ...voteForm, [key]: Number(event.target.value) });

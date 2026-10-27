@@ -45,6 +45,8 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 .wordmark-light { color: var(--green); }
 .status { display: flex; align-items: center; gap: 8px; color: #66716a; font: 12px var(--mono); }
 .status i { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: #56a77c; }
+.topbar-actions { display: flex; align-items: center; gap: 18px; }
+.handout-link { display: inline-flex; align-items: center; gap: 7px; }
 
 .intro { padding: 76px 0 50px; animation: arrive 420ms ease-out both; }
 .eyebrow, .section-label, .panel-footer, .page-footer { font-family: var(--mono); }
@@ -70,6 +72,9 @@ h2 { margin: 8px 0 0; font: 600 19px Manrope, sans-serif; letter-spacing: 0; }
 .exercise-picker label, .test-count { color: #59685f; font-size: 12px; }
 .exercise-picker select { min-width: 140px; border: 1px solid #b9c6bd; border-radius: 4px; padding: 8px 12px; color: var(--ink); background: #fff; }
 .test-count { font-family: var(--mono); }
+.study-progress { display: flex; align-items: center; gap: 12px; color: #64736a; font: 10px var(--mono); }
+.solved-mark, .ready-mark { display: inline-flex; align-items: center; gap: 4px; color: #286b50; }
+.wait-time { color: #956329; }
 .exercise-goal { padding: 24px 0; }
 .exercise-goal p { max-width: 780px; font-size: 15px; line-height: 1.7; margin: 10px 0 0; }
 .query-form { border: 1px solid #b9c6bd; border-radius: 4px; background: #fff; overflow: hidden; }
@@ -122,6 +127,22 @@ tbody tr:nth-child(even) { background: #fafbf9; }
 .vote-actions { display: flex; align-items: center; gap: 12px; }
 .vote-feedback { margin: 0; font-size: 13px; color: #2f6b51; }
 
+.handout { width: min(100% - 64px, 1080px); margin: 0 auto; color: var(--ink); }
+.handout-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.handout-toolbar a { display: inline-flex; align-items: center; gap: 7px; }
+.handout-title { padding: 36px 0 24px; border-bottom: 1px solid var(--line); }
+.handout-title h1 { font: 700 30px/1.2 Manrope, sans-serif; }
+.handout-title > p:last-child { color: #647168; font-size: 14px; }
+.handout-problem { padding: 26px 0 32px; border-bottom: 1px solid var(--line); break-after: page; }
+.handout-problem-heading { display: flex; align-items: center; justify-content: space-between; }
+.handout-tests { color: #68766c; font: 11px var(--mono); }
+.handout-problem h2 { margin: 8px 0; font: 600 21px Manrope, sans-serif; }
+.handout-goal { margin: 0 0 20px; font-size: 14px; line-height: 1.6; }
+.handout-source { margin-top: 16px; }
+.handout-table { overflow: visible; border: 1px solid var(--line); }
+.handout-table table { font-size: 10px; }
+.handout-table th, .handout-table td { padding: 5px 7px; white-space: normal; overflow-wrap: anywhere; }
+
 @keyframes arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 600px) {
   .workspace { width: calc(100% - 36px); }
@@ -132,7 +153,10 @@ tbody tr:nth-child(even) { background: #fafbf9; }
   h2 { font-size: 16px; }
   .panel-footer { gap: 12px; flex-wrap: wrap; padding-left: 18px; }
   .status { max-width: 150px; font-size: 10px; text-align: right; }
+  .topbar-actions { gap: 8px; }
+  .handout-link { padding: 8px; }
   .exercise-header { flex-wrap: wrap; padding: 20px 0; }
+  .study-progress { flex-wrap: wrap; gap: 8px; }
   .result-tabs { gap: 0; }
   .result-tabs button { flex: 1; padding: 12px 6px; font-size: 12px; }
   .feedback { flex-wrap: wrap; }
@@ -144,3 +168,15 @@ tbody tr:nth-child(even) { background: #fafbf9; }
   .vote-actions { flex-direction: column; align-items: stretch; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+@media print {
+  @page { size: landscape; margin: 12mm; }
+  body { min-width: 0; background: #fff; }
+  .screen-only { display: none !important; }
+  .handout { width: auto; margin: 0; }
+  .handout-title { padding-top: 0; }
+  .handout-problem { border: 0; padding: 0; break-after: page; }
+  .handout-table { max-height: none; overflow: visible; }
+  .handout-table th { position: static; }
+  .handout-source, .handout-table tr { break-inside: avoid; }
+}
