@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Printer } from 'lucide-react';
+import { apiFetch } from './api.js';
 
 export default function Handout() {
   const [problems, setProblems] = useState([]);
@@ -10,11 +11,11 @@ export default function Handout() {
     const controller = new AbortController();
     async function load() {
       try {
-        const response = await fetch('/api/v1/problems', { signal: controller.signal });
+        const response = await apiFetch('/problems', { signal: controller.signal });
         if (!response.ok) throw new Error('Could not load the exercise list.');
         const summary = await response.json();
         const details = await Promise.all(summary.map(async (problem) => {
-          const detailResponse = await fetch(`/api/v1/problems/${encodeURIComponent(problem.name)}`, { signal: controller.signal });
+          const detailResponse = await apiFetch(`/problems/${encodeURIComponent(problem.name)}`, { signal: controller.signal });
           if (!detailResponse.ok) throw new Error(`Could not load ${problem.name}.`);
           return detailResponse.json();
         }));

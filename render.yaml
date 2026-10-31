@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: sql-project-api
+    runtime: node
+    plan: starter
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    disk:
+      name: sql-project-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: CLIENT_ORIGINS
+        sync: false

@@ -94,6 +94,18 @@ The Node test suite builds temporary databases from the real exercise dataset an
 tests known solutions, hidden-test failures, result comparison, SQL restrictions,
 API responses and participant isolation. It does not reset local practice data.
 
+## Research Study
+
+The separate research implementation for the supplied “Beyond the Test Cases”
+study is in [research/README.md](research/README.md). It uses the study's Python
+and MySQL environment and is not the SQLite-backed exercise app described above.
+
+## Deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for deploying the Express API to Render and
+the React client to Vercel, including persistent storage and participant-cookie
+configuration.
+
 Set `COOKIE_SECRET` to a stable secret to keep participant cookies valid across
 server restarts. Without it, the backend generates a new secret on each start.
 Other backend options include `PORT` (default 4000) and `DATA_DIR` (default

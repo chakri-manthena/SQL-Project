@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Database, Play, RefreshCw, AlertCircle, Printer } from 'lucide-react';
+import { apiFetch } from './api.js';
 
 async function request(url, options = {}) {
-  const response = await fetch(`/api/v1${url}`, options);
+  const response = await apiFetch(url, options);
   const body = await response.json();
   if (!response.ok) throw new Error(body.message || 'The request failed.');
   return body;
