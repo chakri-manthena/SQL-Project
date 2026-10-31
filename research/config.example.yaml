@@ -1,0 +1,49 @@
+seed: 42
+execution_timeout_seconds: 10
+database:
+  admin:
+    host: 127.0.0.1
+    port: 3307
+    database: sqlsearchdata
+    user: root
+    password_env: MYSQL_ROOT_PASSWORD
+  judge:
+    host: 127.0.0.1
+    port: 3307
+    database: sqlsearchdata
+    user: judge
+    password_env: MYSQL_JUDGE_PASSWORD
+  variant_schema_prefix: var_
+  renamed_schema: sqlsearchdata_renamed
+llm:
+  temperatures: [0, 0.7]
+  calls_per_temperature: [1, 2]
+  max_output_tokens: 512
+  max_input_tokens: null
+  request_timeout_seconds: 60
+  max_transient_retries: 3
+  invalid_answer_retries: 1
+  llm_a:
+    provider: null
+    model: null
+    endpoint: null
+    api_key_env: LLM_A_API_KEY
+    reasoning_mode: null
+    data_retention: null
+    estimated_cost_usd: null
+    input_cost_per_1m_tokens_usd: null
+    output_cost_per_1m_tokens_usd: null
+  llm_b:
+    provider: null
+    model: null
+    endpoint: null
+    api_key_env: LLM_B_API_KEY
+    checkpoint_revision: null
+    runtime: null
+    quantization: null
+    gpu: null
+    reasoning_mode: null
+    data_retention: null
+    estimated_cost_usd: null
+    input_cost_per_1m_tokens_usd: null
+    output_cost_per_1m_tokens_usd: null

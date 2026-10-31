@@ -7,3 +7,13 @@ coverage/
 
 # Generated SQLite databases
 server/var/
+
+# Local research inputs, credentials, and model logs
+research/.venv/
+research/**/__pycache__/
+research/.pytest_cache/
+research/config.yaml
+research/data/raw/SQLRepair/
+research/data/processed/
+research/outputs/
+research/logs/
