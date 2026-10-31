@@ -7,7 +7,7 @@ import { queryRoutes } from './routes/queries.js';
 
 const PARTICIPANT_COOKIE = 'pid';
 
-function participantMiddleware(isProduction) {
+function participantMiddleware({ isProduction, cookieSameSite }) {
   return (req, res, next) => {
     let id = req.signedCookies[PARTICIPANT_COOKIE];
     if (typeof id !== 'string' || !/^\d{6,10}$/.test(id)) {
@@ -15,13 +15,32 @@ function participantMiddleware(isProduction) {
       res.cookie(PARTICIPANT_COOKIE, id, {
         signed: true,
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: cookieSameSite ?? (isProduction ? 'none' : 'strict'),
         secure: isProduction,
         maxAge: 1000 * 60 * 60 * 24 * 30,
       });
     }
     req.participant = id;
     next();
+  };
+}
+
+function corsMiddleware(allowedOrigins = []) {
+  const allowed = new Set(allowedOrigins);
+  return (req, res, next) => {
+    const origin = req.get('Origin');
+    if (origin && allowed.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.vary('Origin');
+    }
+    if (req.method === 'OPTIONS') {
+      if (origin && !allowed.has(origin)) return res.sendStatus(403);
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      return res.sendStatus(204);
+    }
+    return next();
   };
 }
 
@@ -34,12 +53,13 @@ function participantMiddleware(isProduction) {
 export function createApp({ config, repo, executor }) {
   const app = express();
   app.disable('x-powered-by');
+  app.use(corsMiddleware(config.clientOrigins));
   app.use(helmet());
   app.use(express.json({ limit: '20kb' }));
   app.use(cookieParser(config.cookieSecret));
 
   const api = express.Router();
-  api.use(participantMiddleware(config.isProduction));
+  api.use(participantMiddleware(config));
 
   api.get('/health', (req, res) => res.json({ status: 'ok' }));
 

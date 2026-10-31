@@ -319,3 +319,48 @@ test('bounded AST repair search can add DISTINCT and repair ORDER BY directions 
   assert.match(orderRepair, /TUI.*DESC/i);
   assert.match(orderRepair, /CUI.*ASC/i);
 });
+
+test('production API allows only configured credentialed frontend origins', async () => {
+  const app = createApp({
+    config: {
+      ...config,
+      isProduction: true,
+      cookieSameSite: 'none',
+      clientOrigins: ['https://sql-project.example'],
+    },
+    repo,
+    executor,
+  });
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  const url = `http://127.0.0.1:${server.address().port}/api/v1`;
+  try {
+    const identity = await fetch(`${url}/myId`, {
+      headers: { Origin: 'https://sql-project.example' },
+    });
+    assert.equal(identity.headers.get('access-control-allow-origin'), 'https://sql-project.example');
+    assert.equal(identity.headers.get('access-control-allow-credentials'), 'true');
+    assert.match(identity.headers.get('set-cookie'), /SameSite=None/i);
+    assert.match(identity.headers.get('set-cookie'), /Secure/i);
+
+    const preflight = await fetch(`${url}/submitQuery`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://sql-project.example',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type',
+      },
+    });
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get('access-control-allow-credentials'), 'true');
+
+    const rejected = await fetch(`${url}/submitQuery`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://untrusted.example' },
+    });
+    assert.equal(rejected.status, 403);
+    assert.equal(rejected.headers.get('access-control-allow-origin'), null);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

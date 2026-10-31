@@ -16,6 +16,12 @@ const config = {
   // A random secret means participant cookies are invalidated on restart; set COOKIE_SECRET to persist them.
   cookieSecret: process.env.COOKIE_SECRET ?? crypto.randomBytes(32).toString('hex'),
   isProduction: process.env.NODE_ENV === 'production',
+  clientOrigins: (process.env.CLIENT_ORIGINS ?? process.env.CLIENT_ORIGIN ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  cookieSameSite: process.env.COOKIE_SAME_SITE ??
+    (process.env.NODE_ENV === 'production' ? 'none' : 'strict'),
   voting: {
     minAttempts: intFromEnv('VOTING_MIN_ATTEMPTS', 5),
     minMinutes: intFromEnv('VOTING_MIN_MINUTES', 5),
