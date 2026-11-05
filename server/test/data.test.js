@@ -54,23 +54,6 @@ test('free-tier mode falls back when explicitly enabled', () => {
     error.code = 'EACCES';
     throw error;
   };
-
-  test('directly configured Free-tier path warns that application data is ephemeral', () => {
-    const warnings = [];
-    const originalWarn = console.warn;
-    console.warn = (message) => warnings.push(message);
-    try {
-      const config = {
-        dataDir: '/tmp/sql-project-data',
-        ephemeralDataDir: '/tmp/sql-project-data',
-        allowEphemeralData: true,
-      };
-      assert.equal(resolveDataDirectory(config, () => {}), config.dataDir);
-    } finally {
-      console.warn = originalWarn;
-    }
-    assert.match(warnings[0], /data.*lost.*restarts or redeploys/i);
-  });
   const config = {
     dataDir: '/var/data',
     ephemeralDataDir: path.join(directory, 'ephemeral'),
@@ -85,4 +68,45 @@ test('free-tier mode falls back when explicitly enabled', () => {
     () => resolveDataDirectory({ ...config, allowEphemeralData: false }, denied),
     { code: 'EACCES' },
   );
+});
+
+test('wrapped EACCES from the configured data directory triggers the ephemeral fallback', () => {
+  const ephemeralPath = path.join(directory, 'wrapped-error-fallback');
+  const resolveDirectory = (dataDir) => ensureDataDirectory(dataDir, (target) => {
+    if (target === '/var/data') {
+      const error = new Error('permission denied');
+      error.code = 'EACCES';
+      throw error;
+    }
+    fs.mkdirSync(target, { recursive: true });
+  });
+
+  assert.equal(
+    resolveDataDirectory(
+      {
+        dataDir: '/var/data',
+        ephemeralDataDir: ephemeralPath,
+        allowEphemeralData: true,
+      },
+      resolveDirectory,
+    ),
+    ephemeralPath,
+  );
+});
+
+test('directly configured Free-tier path warns that application data is ephemeral', () => {
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (message) => warnings.push(message);
+  try {
+    const config = {
+      dataDir: '/tmp/sql-project-data',
+      ephemeralDataDir: '/tmp/sql-project-data',
+      allowEphemeralData: true,
+    };
+    assert.equal(resolveDataDirectory(config, () => {}), config.dataDir);
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.match(warnings[0], /data.*lost.*restarts or redeploys/i);
 });

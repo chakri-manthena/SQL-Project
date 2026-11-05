@@ -9,10 +9,12 @@ export function ensureDataDirectory(dataDir, mkdirSync = fs.mkdirSync) {
     mkdirSync(dataDir, { recursive: true });
   } catch (error) {
     if (error.code === 'EACCES' || error.code === 'EPERM') {
-      throw new Error(
+      const wrapped = new Error(
         `DATA_DIR is not writable: ${dataDir}. Set ALLOW_EPHEMERAL_DATA=true to use temporary storage, or attach a writable persistent disk at this path.`,
         { cause: error },
       );
+      wrapped.code = error.code;
+      throw wrapped;
     }
     throw error;
   }
