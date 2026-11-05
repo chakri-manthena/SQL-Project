@@ -24,14 +24,15 @@ At first startup, the service creates the exercise database and initial sample r
 1. In Vercel, import the same GitHub repository.
 2. Keep **Root Directory** at the repository root (`.`). The client has a local `file:..` package reference, so building from the repo root ensures npm can resolve it.
 3. Use the checked-in [vercel.json](vercel.json): it installs from `client`, runs the Vite build, publishes `client/dist`, and provides SPA route fallback.
-4. Add the environment variable `VITE_API_URL` for Production (and Preview only if you intend to support previews), with the Render origin only, e.g. `https://<render-service>.onrender.com`. Do not append `/api/v1`.
-5. Deploy and note the exact production origin Vercel assigns.
+4. In [vercel.json](vercel.json), set the `/api/(.*)` rewrite destination to your exact Render service URL, preserving `/api/$1`. The checked-in value assumes the service is `sql-project-api-chakri`; change only the hostname if Render assigned a different one.
+5. No `VITE_API_URL` variable is needed. Browser requests stay on the Vercel origin and Vercel proxies `/api/*` to Render.
+6. Deploy and note the exact production origin Vercel assigns.
 
 ## 4. Allow the Frontend Origin
 
-In Render, set `CLIENT_ORIGINS` to the exact Vercel origin and redeploy. Multiple origins can be comma-separated. The API only grants credentialed CORS to configured origins. The frontend sends requests with credentials so the signed participant cookie persists.
+With the Vercel rewrite, browser requests are same-origin, so `CLIENT_ORIGINS` is not required for the Vercel frontend. Leave it blank unless you also make direct browser requests to the Render API; if so, set it to the exact allowed origin(s). The frontend sends credentials so the signed participant cookie persists through the proxy.
 
-The default `vercel.app` and `onrender.com` hosts are different sites. The API sets `SameSite=None; Secure` cookies in production, but browser third-party-cookie restrictions can still affect participant continuity. For the most reliable identity persistence, use custom domains under the same registrable domain, such as `app.example.com` on Vercel and `api.example.com` on Render, and set `VITE_API_URL` / `CLIENT_ORIGINS` to those exact HTTPS origins.
+Because the browser communicates with Vercel and Vercel proxies the API requests, the browser does not need to accept a third-party Render cookie. The API still sets a secure production cookie; Vercel forwards it on the proxied response.
 
 ## 5. Verify the Deployment
 
@@ -46,8 +47,8 @@ The default `vercel.app` and `onrender.com` hosts are different sites. The API s
 - `COOKIE_SECRET` must remain stable across deploys. Rotating it invalidates existing signed participant cookies.
 - Keep the Render disk attached and mounted at `/var/data`. Replacing the disk loses app data unless restored from backup.
 - Back up `app.db` before risky changes. A persistent disk is not a backup strategy.
-- Restrict `CLIENT_ORIGINS`; do not use `*` with credentialed requests.
-- Vercel preview URLs are not automatically allowed. Add specific preview origins if needed, or test against a stable custom domain.
+- If using the Render API directly from a browser, restrict `CLIENT_ORIGINS`; do not use `*` with credentialed requests.
+- Vercel preview deployments use the same proxy target, so no per-preview CORS origin is required.
 - The Render service uses SQLite and is intended for a single instance. For horizontal scaling, migrate participant/voting state to a managed database and update the repository layer first.
 
 ## Research Experiment Is Separate
