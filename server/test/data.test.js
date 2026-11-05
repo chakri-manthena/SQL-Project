@@ -44,6 +44,23 @@ test('free-tier mode falls back only when explicitly enabled', () => {
     error.code = 'EACCES';
     throw error;
   };
+
+  test('directly configured Free-tier path warns that application data is ephemeral', () => {
+    const warnings = [];
+    const originalWarn = console.warn;
+    console.warn = (message) => warnings.push(message);
+    try {
+      const config = {
+        dataDir: '/tmp/sql-project-data',
+        ephemeralDataDir: '/tmp/sql-project-data',
+        allowEphemeralData: true,
+      };
+      assert.equal(resolveDataDirectory(config, () => {}), config.dataDir);
+    } finally {
+      console.warn = originalWarn;
+    }
+    assert.match(warnings[0], /data.*lost.*restarts or redeploys/i);
+  });
   const config = {
     dataDir: '/var/data',
     ephemeralDataDir: path.join(directory, 'ephemeral'),

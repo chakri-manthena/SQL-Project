@@ -21,6 +21,14 @@ export function ensureDataDirectory(dataDir, mkdirSync = fs.mkdirSync) {
 export function resolveDataDirectory(config, ensureWritable = ensureDataDirectory) {
   try {
     ensureWritable(config.dataDir);
+    if (
+      config.allowEphemeralData &&
+      path.resolve(config.dataDir) === path.resolve(config.ephemeralDataDir)
+    ) {
+      console.warn(
+        `WARNING: using ephemeral DATA_DIR ${config.dataDir}; submissions and votes will be lost when this instance restarts or redeploys.`,
+      );
+    }
     return config.dataDir;
   } catch (error) {
     if (!config.allowEphemeralData || !['EACCES', 'EPERM'].includes(error.code)) {
