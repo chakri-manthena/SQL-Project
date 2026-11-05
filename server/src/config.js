@@ -13,7 +13,7 @@ export function shouldAllowEphemeralData(env = process.env) {
   if (env.ALLOW_EPHEMERAL_DATA !== undefined) {
     return env.ALLOW_EPHEMERAL_DATA === 'true';
   }
-  return env.NODE_ENV === 'production';
+  return env.NODE_ENV === 'production' || env.DATA_DIR === '/var/data';
 }
 
 const config = {

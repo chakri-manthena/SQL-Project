@@ -23,6 +23,7 @@ test('missing Render disk produces a direct DATA_DIR setup error', () => {
 
 test('production enables ephemeral fallback by default and supports explicit opt-out', () => {
   assert.equal(shouldAllowEphemeralData({ NODE_ENV: 'production' }), true);
+  assert.equal(shouldAllowEphemeralData({ DATA_DIR: '/var/data' }), true);
   assert.equal(shouldAllowEphemeralData({ NODE_ENV: 'production', ALLOW_EPHEMERAL_DATA: 'false' }), false);
   assert.equal(shouldAllowEphemeralData({ NODE_ENV: 'development' }), false);
 });
