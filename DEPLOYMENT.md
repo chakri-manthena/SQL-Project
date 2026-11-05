@@ -36,11 +36,11 @@ Wait for the health check to pass at `https://<render-service>.onrender.com/api/
 5. No `VITE_API_URL` variable is needed. Browser requests stay on the Vercel origin and Vercel proxies `/api/*` to Render.
 6. Deploy and note the exact production origin Vercel assigns.
 
-## 4. Allow the Frontend Origin
+## 4. Configure API Origin Access
 
-With the Vercel rewrite, browser requests are same-origin, so `CLIENT_ORIGINS` is not required for the Vercel frontend. Leave it blank unless you also make direct browser requests to the Render API; if so, set it to the exact allowed origin(s). The frontend sends credentials so the signed participant cookie persists through the proxy.
+The Vercel rewrite makes current browser requests same-origin. `render.yaml` also allows the exact production Vercel origin (`https://sql-project-pied.vercel.app`) as a compatibility path for older bundles or direct API testing. If your Vercel domain changes, update `CLIENT_ORIGINS` in Render to that exact origin and redeploy the API; do not use `*` with credentials.
 
-Because the browser communicates with Vercel and Vercel proxies the API requests, the browser does not need to accept a third-party Render cookie. The API still sets a secure production cookie; Vercel forwards it on the proxied response.
+For the same-origin rewrite path, the browser does not need to accept a third-party Render cookie. The API still sets a secure production cookie; Vercel forwards it on the proxied response.
 
 ## 5. Verify the Deployment
 
