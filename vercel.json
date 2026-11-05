@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://sql-project-api-chakri.onrender.com/api/$1"
+      "destination": "https://sql-project-i7oz.onrender.com/api/$1"
     },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
