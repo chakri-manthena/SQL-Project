@@ -10,8 +10,9 @@ function intFromEnv(name, fallback) {
 }
 
 export function shouldAllowEphemeralData(env = process.env) {
-  if (env.ALLOW_EPHEMERAL_DATA !== undefined) {
-    return env.ALLOW_EPHEMERAL_DATA === 'true';
+  const override = env.ALLOW_EPHEMERAL_DATA?.trim().toLowerCase();
+  if (override) {
+    return !['false', '0', 'no'].includes(override);
   }
   return env.NODE_ENV === 'production' || env.DATA_DIR === '/var/data';
 }
