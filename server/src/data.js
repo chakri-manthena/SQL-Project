@@ -18,15 +18,31 @@ export function ensureDataDirectory(dataDir, mkdirSync = fs.mkdirSync) {
   }
 }
 
+export function resolveDataDirectory(config, ensureWritable = ensureDataDirectory) {
+  try {
+    ensureWritable(config.dataDir);
+    return config.dataDir;
+  } catch (error) {
+    if (!config.allowEphemeralData || !['EACCES', 'EPERM'].includes(error.code)) {
+      throw error;
+    }
+    ensureWritable(config.ephemeralDataDir);
+    console.warn(
+      `WARNING: ${config.dataDir} is unavailable. Using ephemeral DATA_DIR ${config.ephemeralDataDir}; submissions and votes will be lost when this instance restarts or redeploys.`,
+    );
+    return config.ephemeralDataDir;
+  }
+}
+
 export function initializeData(config) {
-  ensureDataDirectory(config.dataDir);
-  const problemDbFile = path.join(config.dataDir, 'problems.db');
+  const dataDir = resolveDataDirectory(config);
+  const problemDbFile = path.join(dataDir, 'problems.db');
   if (!fs.existsSync(problemDbFile)) {
     const tables = buildProblemDatabase(problemDbFile, config.problemSqlDir);
     console.log(`Initialized ${problemDbFile} with ${tables.length} tables`);
   }
 
-  const appDbFile = path.join(config.dataDir, 'app.db');
+  const appDbFile = path.join(dataDir, 'app.db');
   const initializeSampleData = !fs.existsSync(appDbFile);
   const repo = openAppDatabase(appDbFile);
   if (initializeSampleData) {

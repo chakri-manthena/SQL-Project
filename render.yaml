@@ -2,20 +2,20 @@ services:
   - type: web
     name: sql-project-api
     runtime: node
-    plan: starter
+    plan: free
     rootDir: server
     buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /api/v1/health
-    disk:
-      name: sql-project-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATA_DIR
-        value: /var/data
+        value: /tmp/sql-project-data
+      - key: EPHEMERAL_DATA_DIR
+        value: /tmp/sql-project-data
+      - key: ALLOW_EPHEMERAL_DATA
+        value: "true"
       - key: COOKIE_SECRET
         generateValue: true
       - key: CLIENT_ORIGINS
