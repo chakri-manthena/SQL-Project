@@ -21,7 +21,7 @@ Render and Vercel deploy from the GitHub repository. Do not commit `.env`, `rese
 | `ALLOW_EPHEMERAL_DATA` | `true` |
 | `COOKIE_SECRET` | Generate a value in Render |
 
-If you created the service manually and it still has `DATA_DIR=/var/data`, change it to `/tmp/sql-project-data`, add `EPHEMERAL_DATA_DIR=/tmp/sql-project-data` and `ALLOW_EPHEMERAL_DATA=true`, then redeploy. No disk is needed.
+For an existing production service still configured with `DATA_DIR=/var/data`, the latest code automatically falls back to `/tmp/sql-project-data` when that path is unwritable. To make it explicit, set `DATA_DIR` and `EPHEMERAL_DATA_DIR` to `/tmp/sql-project-data` and `ALLOW_EPHEMERAL_DATA=true`. Set `ALLOW_EPHEMERAL_DATA=false` only if you want startup to fail instead of using temporary storage. No disk is needed.
 
 At startup the service creates the exercise database and sample rows under `/tmp`. Render Free may sleep and its filesystem is not durable; submissions, votes, and database files can disappear after a restart, sleep, or deploy and will then be reinitialized. This mode is suitable for a demo, not durable participant or research data. Do not run `npm run seed` unless you intend to reset the app database.
 

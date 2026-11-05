@@ -9,11 +9,18 @@ function intFromEnv(name, fallback) {
   return Number.isNaN(value) ? fallback : value;
 }
 
+export function shouldAllowEphemeralData(env = process.env) {
+  if (env.ALLOW_EPHEMERAL_DATA !== undefined) {
+    return env.ALLOW_EPHEMERAL_DATA === 'true';
+  }
+  return env.NODE_ENV === 'production';
+}
+
 const config = {
   port: intFromEnv('PORT', 4000),
   dataDir: process.env.DATA_DIR ?? path.join(serverRoot, 'var'),
   ephemeralDataDir: process.env.EPHEMERAL_DATA_DIR ?? '/tmp/sql-project-data',
-  allowEphemeralData: process.env.ALLOW_EPHEMERAL_DATA === 'true',
+  allowEphemeralData: shouldAllowEphemeralData(),
   problemSqlDir: path.join(serverRoot, 'data', 'problems'),
   // A random secret means participant cookies are invalidated on restart; set COOKIE_SECRET to persist them.
   cookieSecret: process.env.COOKIE_SECRET ?? crypto.randomBytes(32).toString('hex'),

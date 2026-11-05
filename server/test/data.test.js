@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import config from '../src/config.js';
+import { shouldAllowEphemeralData } from '../src/config.js';
 import { ensureDataDirectory, initializeData, resolveDataDirectory } from '../src/data.js';
 
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sql-project-startup-'));
@@ -16,8 +17,14 @@ test('missing Render disk produces a direct DATA_DIR setup error', () => {
       error.code = 'EACCES';
       throw error;
     }),
-    /attach a persistent disk mounted at this exact path/,
+    /ALLOW_EPHEMERAL_DATA=true/,
   );
+});
+
+test('production enables ephemeral fallback by default and supports explicit opt-out', () => {
+  assert.equal(shouldAllowEphemeralData({ NODE_ENV: 'production' }), true);
+  assert.equal(shouldAllowEphemeralData({ NODE_ENV: 'production', ALLOW_EPHEMERAL_DATA: 'false' }), false);
+  assert.equal(shouldAllowEphemeralData({ NODE_ENV: 'development' }), false);
 });
 
 test('startup initializes seed data once and preserves participant rows on restart', () => {
@@ -38,7 +45,7 @@ test('startup initializes seed data once and preserves participant rows on resta
   second.repo.close();
 });
 
-test('free-tier mode falls back only when explicitly enabled', () => {
+test('free-tier mode falls back when explicitly enabled', () => {
   const denied = () => {
     const error = new Error('permission denied');
     error.code = 'EACCES';
