@@ -4,10 +4,21 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import config from '../src/config.js';
-import { initializeData } from '../src/data.js';
+import { ensureDataDirectory, initializeData } from '../src/data.js';
 
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sql-project-startup-'));
 after(() => fs.rmSync(directory, { recursive: true, force: true }));
+
+test('missing Render disk produces a direct DATA_DIR setup error', () => {
+  assert.throws(
+    () => ensureDataDirectory('/var/data', () => {
+      const error = new Error('permission denied');
+      error.code = 'EACCES';
+      throw error;
+    }),
+    /attach a persistent disk mounted at this exact path/,
+  );
+});
 
 test('startup initializes seed data once and preserves participant rows on restart', () => {
   const startupConfig = { ...config, dataDir: directory };

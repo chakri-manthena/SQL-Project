@@ -15,6 +15,8 @@ Render and Vercel deploy from the GitHub repository. Do not commit `.env`, `rese
 5. Confirm Render has `NODE_ENV=production`, `DATA_DIR=/var/data`, a generated `COOKIE_SECRET`, and `CLIENT_ORIGINS` set. Keep one service instance because SQLite and its attached disk are single-instance storage.
 6. Wait for the health check to pass at `https://<render-service>.onrender.com/api/v1/health`.
 
+If you created the service from the manual **New Web Service** form instead of the Blueprint, add the disk yourself under the service's **Disks** settings: name `sql-project-data`, mount path `/var/data`, size `1 GB`. Set `DATA_DIR=/var/data` on that same service and redeploy. A Starter compute plan alone does not create or mount the disk.
+
 At first startup, the service creates the exercise database and initial sample rows on the disk. Later restarts and deploys reuse those files and preserve submissions. Do not run `npm run seed` on the deployed disk: that command resets the app database.
 
 ## 3. Deploy the Vercel client
