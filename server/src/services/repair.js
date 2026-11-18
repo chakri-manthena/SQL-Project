@@ -261,11 +261,6 @@ export function suggestRepair(repo, problemName, submittedQuery, options = {}) {
   const { isValidCandidate = () => true, expectedColumns = [], sourceColumns = [] } = options;
   const problem = getProblem(problemName);
   if (!problem) return null;
-  try {
-    parseStudentQuery(submittedQuery, problem);
-  } catch {
-    return null;
-  }
   const seeded = [
     ...(SEED_REPAIRED_QUERIES[problemName] || []),
     ...(SEED_CORRECT_QUERIES[problemName] || []),
@@ -282,7 +277,7 @@ export function suggestRepair(repo, problemName, submittedQuery, options = {}) {
     const score = scoreSimilarity(submittedQuery, candidate);
     if (!best || score > best.score) best = { query: candidate, score };
   }
-  if (!best || best.score < 0.2) return null;
+  if (!best) return null;
   return {
     query: best.query,
     confidence: Number(best.score.toFixed(2)),

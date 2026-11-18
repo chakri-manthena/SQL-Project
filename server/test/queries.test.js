@@ -221,6 +221,16 @@ test('API validates submissions and stores attempts under the signed participant
     assert.match(suggestion.query, /MIN`?\s*(?:=\s*0|<\s*1)/i);
     assert.equal(checkQuery(executor, PROBLEMS[0], suggestion.query).kind, 'success');
 
+    const malformedRepairResponse = await fetch(`${url}/repair/suggest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ problem: 'Problem 1', query: 'SELEC * FORM alpha WHERE MIN' }),
+    });
+    const malformedRepair = await malformedRepairResponse.json();
+    assert.equal(malformedRepairResponse.status, 200);
+    assert.equal(malformedRepair.status, 'success');
+    assert.equal(checkQuery(executor, PROBLEMS[0], malformedRepair.query).kind, 'success');
+
     const unsupported = await fetch(`${url}/repair/suggest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: cookie },
@@ -241,7 +251,10 @@ test('repair suggestion only returns candidates verified against every hidden da
   assert.ok(suggestion);
   assert.equal(checkQuery(executor, PROBLEMS[0], suggestion.query).kind, 'success');
   assert.equal(suggestRepair(repo, 'Problem 1', 'SELECT * FROM alpha WHERE MIN = -1', { isValidCandidate: () => false }), null);
-  assert.equal(suggestRepair(repo, 'Problem 1', 'INSERT INTO alpha VALUES (1)', { isValidCandidate: () => true }), null);
+  const malformedSuggestion = suggestRepair(repo, 'Problem 1', 'INSERT INTO alpha VALUES (1)',
+    { isValidCandidate: (candidate) => checkQuery(executor, PROBLEMS[0], candidate).kind === 'success' });
+  assert.ok(malformedSuggestion);
+  assert.equal(checkQuery(executor, PROBLEMS[0], malformedSuggestion.query).kind, 'success');
 });
 
 test('bounded AST repair search can change projection, operator and numeric literal', () => {
